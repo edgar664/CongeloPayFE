@@ -1,0 +1,107 @@
+/* Estilos específicos para la Captura Diaria */
+
+.personal-screen {
+    animation: fadeIn 0.4s ease-out;
+}
+
+/* Contenedor de la cabecera con el input de fecha */
+.section-header .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Estilo para el input de fecha que combine con tus botones */
+.date-input-custom {
+    background: white;
+    border: 1px solid #e2e8f0;
+    padding: 8px 15px;
+    border-radius: 10px;
+    color: #1e293b;
+    font-family: inherit;
+    font-weight: 600;
+    outline: none;
+    transition: 0.2s;
+}
+
+.date-input-custom:focus {
+    border-color: #0f172a;
+    box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.1);
+}
+
+/* Inputs de números dentro de la tabla (Cajas, Procesos, etc.) */
+.input-capture {
+    width: 85px;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+    font-weight: 600;
+    color: #0f172a;
+    transition: all 0.2s;
+}
+
+.input-capture:focus {
+    border-color: #3b82f6;
+    background: #f0f9ff;
+    outline: none;
+}
+
+/* Quitar las flechas del input number para que se vea más limpio */
+.input-capture::-webkit-inner-spin-button,
+.input-capture::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Estilo para los Checkbox de asistencia */
+.checkbox-asistencia {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #15803d; /* Color verde como tu status 'activo' */
+}
+
+/* Resaltar la fila que se está editando */
+.personal-table tbody tr:hover .input-capture {
+    border-color: #cbd5e1;
+}
+
+/* Estilo para cuando un valor es mayor a 0 (opcional) */
+.input-filled {
+    background: #f8fafc;
+    border-color: #94a3b8;
+}
+
+/* Ajustes para pantallas pequeñas */
+@media (max-width: 768px) {
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .input-capture {
+        width: 100%; /* En móvil que ocupen el ancho de la celda */
+    }
+}
+
+/* Botón de guardar con un color ligeramente distinto si quieres diferenciarlo */
+.btn-save-all {
+    background: #15803d; /* Verde éxito */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-save-all:hover {
+    background: #166534;
+    transform: translateY(-1px);
+}

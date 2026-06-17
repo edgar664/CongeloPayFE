@@ -1,0 +1,392 @@
+/* Sidebar base */
+.pro-sidebar {
+    width: 260px;
+    background: #1a1d21;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    transition: width 0.3s ease; /* Transición suave de ancho */
+    overflow: hidden;
+}
+
+/* Layout genérico para todas las páginas que usan la sidebar */
+.pro-dashboard {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+    position: relative;
+}
+
+.pro-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.menu-overlay {
+    display: none;
+}
+
+.menu-open .menu-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 90;
+}
+
+@media (max-width: 1024px) {
+    .pro-sidebar {
+        position: fixed;
+        left: -260px;
+        top: 0;
+        bottom: 0;
+        z-index: 100;
+    }
+
+    .menu-open .pro-sidebar {
+        left: 0;
+    }
+}
+
+/* Cuando está colapsado */
+.pro-sidebar.collapsed {
+    width: 70px; /* Ancho mini */
+}
+
+/* Soporte para colapsar mediante la clase wrapper .collapsed */
+.collapsed .pro-sidebar {
+    width: 70px;
+}
+
+.collapsed .pro-sidebar .menu-label,
+.collapsed .pro-sidebar .logo-text,
+.collapsed .pro-sidebar .u-info,
+.collapsed .pro-sidebar .submenu {
+    display: none;
+}
+
+.collapsed .pro-sidebar .menu-item {
+    justify-content: center;
+    padding: 12px;
+}
+
+.collapsed .pro-sidebar .pro-user-footer {
+    justify-content: center;
+}
+
+
+/* Ocultar etiquetas del menú */
+.pro-sidebar.collapsed .menu-label,
+.pro-sidebar.collapsed .logo-text,
+.pro-sidebar.collapsed .u-info {
+    display: none;
+}
+
+/* Ajuste del Footer cuando está colapsado */
+.pro-sidebar.collapsed .pro-user-footer {
+    justify-content: center; /* Centra el avatar */
+    padding: 15px 0;
+}
+
+/* El botón de cerrar sesión en modo colapsado */
+.pro-sidebar.collapsed .logout-mini {
+    position: absolute;
+    margin-left: 0;
+    opacity: 0; /* Lo ocultamos para que no flote sobre el avatar */
+    pointer-events: none;
+}
+
+/* OPCIONAL: Si quieres que el botón de cerrar sesión aparezca 
+   sobre el avatar al pasar el mouse cuando está colapsado */
+.pro-sidebar.collapsed .pro-user-footer:hover .u-avatar {
+    opacity: 0.3;
+}
+.pro-sidebar.collapsed .pro-user-footer:hover .logout-mini {
+    opacity: 1;
+    pointer-events: auto;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.pro-user-footer {
+    margin-top: auto;
+    padding: 20px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0,0,0,0.2);
+    position: relative; /* Para el posicionamiento del botón mini */
+}
+
+/* LOGO */
+.pro-logo {
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.3);
+}
+
+.logo-symbol {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 20px;
+}
+
+.logo-text {
+    font-size: 16px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.logo-text b {
+    color: #2563eb;
+}
+
+/* MENÚ PRINCIPAL */
+.pro-menu {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pro-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.pro-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.pro-menu::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+}
+
+/* ITEM DEL MENÚ PRINCIPAL */
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: rgba(255,255,255,0.7);
+    position: relative;
+}
+
+.menu-item:hover {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+}
+
+.menu-item.active {
+    background: rgba(37, 99, 235, 0.15);
+    color: #2563eb;
+    border-left: 3px solid #2563eb;
+    padding-left: 13px;
+}
+
+.menu-item svg {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+}
+
+.menu-label {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ICONO CHEVRON */
+.chevron-icon {
+    width: 16px !important;
+    height: 16px !important;
+    margin-left: auto;
+    transition: transform 0.3s ease;
+}
+
+.menu-item.expanded .chevron-icon {
+    transform: rotate(180deg);
+}
+
+/* SUBMENÚ */
+.submenu {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: rgba(0,0,0,0.2);
+    max-height: 500px;
+    overflow: hidden;
+    animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+    from {
+        max-height: 0;
+        opacity: 0;
+    }
+    to {
+        max-height: 500px;
+        opacity: 1;
+    }
+}
+
+/* ITEM DEL SUBMENÚ */
+.submenu-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px 10px 48px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
+    border-left: 2px solid transparent;
+}
+
+.submenu-item:hover {
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.9);
+    padding-left: 50px;
+}
+
+.submenu-item.active {
+    background: rgba(37, 99, 235, 0.1);
+    color: #2563eb;
+    border-left-color: #2563eb;
+    font-weight: 500;
+}
+
+.submenu-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* USER FOOTER */
+.u-avatar {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #fff;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.u-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.u-name {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.u-status {
+    font-size: 11px;
+    margin: 4px 0 0 0;
+    color: rgba(255,255,255,0.6);
+}
+
+.logout-mini {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.6);
+    cursor: pointer;
+    padding: 6px;
+    font-size: 18px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.logout-mini:hover {
+    color: #dc2626;
+    transform: scale(1.1);
+}
+
+/* ESTADOS COLAPSADO */
+.pro-sidebar.collapsed {
+    width: 70px;
+}
+
+.pro-sidebar.collapsed .menu-label,
+.pro-sidebar.collapsed .logo-text,
+.pro-sidebar.collapsed .u-info,
+.pro-sidebar.collapsed .submenu {
+    display: none;
+}
+
+.pro-sidebar.collapsed .pro-logo {
+    justify-content: center;
+}
+
+.pro-sidebar.collapsed .logo-symbol {
+    margin: 0;
+}
+
+.pro-sidebar.collapsed .menu-item {
+    justify-content: center;
+    padding: 12px;
+    border-left: none !important;
+}
+
+.pro-sidebar.collapsed .menu-item.active {
+    background: rgba(37, 99, 235, 0.2);
+    border-bottom: 3px solid #2563eb;
+    padding-bottom: 9px;
+}
+
+.pro-sidebar.collapsed .pro-user-footer {
+    justify-content: center;
+    padding: 15px 0;
+}
+
+.pro-sidebar.collapsed .logout-mini {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.pro-sidebar.collapsed .pro-user-footer:hover .u-avatar {
+    opacity: 0.3;
+}
+
+.pro-sidebar.collapsed .pro-user-footer:hover .logout-mini {
+    opacity: 1;
+    pointer-events: auto;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}

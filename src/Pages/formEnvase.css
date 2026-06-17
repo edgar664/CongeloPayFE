@@ -1,0 +1,164 @@
+/* Estilos para la página de formulario de envase */
+:root {
+  --bg: #f4f7fb;
+  --card: #ffffff;
+  --border: #d8dde6;
+  --text: #1f2a37;
+  --muted: #6b7a8c;
+  --primary: #1d72ff;
+  --primary-dark: #1558c4;
+  --danger: #e04f5f;
+  --radius: 12px;
+  --shadow: 0 16px 40px rgba(31, 42, 55, 0.08);
+}
+
+.form-envase {
+  min-height: 100vh;
+  padding: 32px;
+  background: linear-gradient(135deg, #eef4ff 0%, #f9fbff 100%);
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.form-envase__card {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 32px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.form-envase__header {
+  margin-bottom: 28px;
+}
+
+.form-envase__header h1,
+.form-envase__header h2 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.form-envase__header h1 {
+  font-size: 2rem;
+}
+
+.form-envase__header p {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.form-envase__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.form-envase__field {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-envase__label {
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.form-envase__input,
+.form-envase__select,
+.form-envase__textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-envase__input:focus,
+.form-envase__select:focus,
+.form-envase__textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(29, 114, 255, 0.12);
+}
+
+.form-envase__textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.form-envase__actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 28px;
+  flex-wrap: wrap;
+}
+
+.button,
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.button-primary,
+.btn-primary {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.button-secondary,
+.btn-secondary {
+  background: #f5f7fb;
+  color: var(--text);
+}
+
+.button-primary:hover,
+.btn-primary:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.button-secondary:hover,
+.btn-secondary:hover {
+  background: #e7ecf6;
+}
+
+.form-envase__note {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 720px) {
+  .form-envase {
+    padding: 20px;
+  }
+
+  .form-envase__card {
+    padding: 24px;
+  }
+
+  .form-envase__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-envase__actions {
+    flex-direction: column;
+  }
+}
