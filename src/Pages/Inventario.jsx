@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Sidebar, Icon as SidebarIcon } from '../Components/Sidebar'; 
 import FormProd from './FormProd'; 
+import FormProdEd from './FormProdEd'; 
 import { ENDPOINTS } from '../api'; 
 import './personal.css'; // Reutiliza el CSS estructurado y estilizado del dashboard
 import './dashboard.css';
@@ -9,7 +10,7 @@ const Icon = ({ name }) => {
     const icons = {
         plus: <path d="M12 5v14M5 12h14" />,
         search: <circle cx="11" cy="11" r="8"></circle>,
-        edit: <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>,
+        edit: <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 2 2 2h14a2 2 0 0 2 2-2v-7"></path>,
         trash: <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>,
         menu: <path d="M3 12h18M3 6h18M3 18h18" />,
         close: <path d="M18 6L6 18M6 6l12 12" />
@@ -29,6 +30,8 @@ export default function Inventario() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showModal, setShowModal] = useState(false); 
+    // 1. Estado para almacenar el producto que se va a editar
+    const [editingProduct, setEditingProduct] = useState(null); 
 
     const API_URL = ENDPOINTS.productos;
 
@@ -66,6 +69,12 @@ export default function Inventario() {
         loadInventory();
         return () => { document.body.style.overflow = 'auto'; };
     }, []);
+
+    // 2. Función para activar la edición de un producto
+    const handleEdit = (product) => {
+        setEditingProduct(product);
+        setShowModal(true);
+    };
 
     const handleDelete = async (id) => {
         if (!window.confirm('¿Eliminar este producto del inventario de forma permanente?')) return;
@@ -108,12 +117,12 @@ export default function Inventario() {
                         
                         <div className="section-header">
                             <h2>Productos Registrados</h2>
-                            <button className="btn-add" onClick={() => setShowModal(true)}>
+                            <button className="btn-add" onClick={() => { setEditingProduct(null); setShowModal(true); }}>
                                 <Icon name="plus" /> <span>Agregar Producto</span>
                             </button>
                         </div>
 
-                        {/* Filtro de búsqueda estilizado */}
+                        {/* Filtro de búsqueda */}
                         <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "20px" }}>
                             <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#fff', padding: '10px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.03)', gap: '10px' }}>
                                 <Icon name="search" />
@@ -153,7 +162,7 @@ export default function Inventario() {
                                             <th style={{ textAlign: "right" }}>Kilos Totales</th>
                                             <th style={{ textAlign: "right" }}>Precio Unitario</th>
                                             <th style={{ textAlign: "center" }}>Código QR</th>
-                                            <th style={{ textAlign: "center", width: '100px' }}>Acciones</th>
+                                            <th style={{ textAlign: "center", width: '120px' }}>Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -191,11 +200,22 @@ export default function Inventario() {
                                                             style={{ borderRadius: '6px', border: '1px solid #e2e8f0' }}
                                                         />
                                                     </td>
-                                                    <td className="actions-cell">
+                                                    <td className="actions-cell" style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                                        {/* 3. BOTÓN DE EDICIÓN AGREGADO */}
+                                                        <button 
+                                                            className="btn-icon edit" 
+                                                            onClick={() => handleEdit(item)}
+                                                            title="Editar producto"
+                                                            style={{ color: '#3b82f6', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                                                        >
+                                                            <Icon name="edit" />
+                                                        </button>
+
                                                         <button 
                                                             className="btn-icon delete" 
                                                             onClick={() => handleDelete(item.id)}
                                                             title="Eliminar de inventario"
+                                                            style={{ color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer' }}
                                                         >
                                                             <Icon name="trash" />
                                                         </button>
@@ -212,9 +232,11 @@ export default function Inventario() {
                 </div>
             </main>
 
+            {/* 4. Pasar el objeto seleccionado o null al FormProd */}
             {showModal && (
-                <FormProd 
-                    onClose={() => setShowModal(false)} 
+                <FormProdEd
+                    productToEdit={editingProduct} 
+                    onClose={() => { setShowModal(false); setEditingProduct(null); }} 
                     onRefresh={loadInventory} 
                 />
             )}
