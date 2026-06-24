@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import { Sidebar, Icon as SidebarIcon } from '../Components/Sidebar';
-import { ENDPOINTS } from '../api'; // Importamos las rutas dinámicas
-import FormMovSal from './FormMovSal'; // Nombre unificado con mayúscula para componentes moleculares
-import './personal.css'; // Mantenemos la consistencia visual del diseño corporativo
+import { ENDPOINTS } from '../api'; 
+import FormMovTraspaso from './FormMovTraspaso'; // Cambiado al formulario molecular de traspasos
+import './personal.css'; 
 import './dashboard.css';
 
-// Componente para renderizar iconos SVG idénticos a tu módulo de Personal e Inventario
+// Componente para renderizar iconos SVG idénticos a tu módulo corporativo
 const Icon = ({ name }) => {
     const icons = {
         plus: <path d="M12 5v14M5 12h14" />,
         view: <circle cx="12" cy="12" r="10"></circle>,
         edit: <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>,
         trash: <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>,
-        menu: <path d="M3 12h18M3 6h18M3 18h18" />
+        menu: <path d="M3 12h18M3 6h18M3 18h18" />,
+        exchange: <path d="M17 1l4 4-4 4M21 5H9M7 23l-4-4 4-4M3 19h12" />
     };
     return (
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -22,36 +23,29 @@ const Icon = ({ name }) => {
     );
 };
 
-export default function Salidas() {
+export default function Traspasos() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
-    const [entradas, setEntradas] = useState([]);
+    const [movimientos, setMovimientos] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
 
-    // Prioriza el endpoint de salidas de tu archivo api.js
-    const API_URL = ENDPOINTS.movimientos; // <-- Asegúrate de que esta ruta apunte a tu vista de movimientos en Django
+    const API_URL = ENDPOINTS.movimientos;
 
-    const fetchEntradas = async () => {
+    const fetchTraspasos = async () => {
         setLoading(true);
         setError(null);
         try {
             const token = localStorage.getItem('token');
-
-            const headers = {
-                'Content-Type': 'application/json',
-            };
+            const headers = { 'Content-Type': 'application/json' };
 
             if (token) {
-                // CORRECCIÓN 1: Cambiamos 'Bearer' por 'Token' (Requisito nativo de Django DRF)
                 headers['Authorization'] = `Token ${token}`;
             }
 
-            // CORRECCIÓN 2: Limpiamos cualquier posible doble diagonal accidental en la URL
             const cleanUrl = API_URL.replace(/([^:]\/)\/+/g, "$1");
-
             const response = await fetch(cleanUrl, {
                 method: 'GET',
                 headers: headers
@@ -64,40 +58,28 @@ export default function Salidas() {
                 ? data
                 : Array.isArray(data.results)
                     ? data.results
-                    : Array.isArray(data.data)
-                        ? data.data
-                        : [];
+                    : data.data || [];
 
-            setEntradas(items);
+            setMovimientos(items);
         } catch (err) {
-            console.error("Error al obtener movimientos de almacén:", err);
+            console.error("Error al obtener movimientos de traspaso:", err);
             setError("No tienes autorización o el token ha expirado.");
-            setEntradas([]);
+            setMovimientos([]);
         } finally {
             setLoading(false);
         }
     };
 
-    // Funciones desglosadoras tolerantes a datos anidados u objetos foráneos desde serializers
-    const getNombreProducto = (producto) => {
-        if (!producto) return 'No disponible';
-        return producto.nombre || producto.nombre_producto || producto.descripcion || String(producto);
+    const getNombreProducto = (item) => {
+        return item.nombre_producto || 'No disponible';
     };
 
-    const getNombreAlmacen = (almacen) => {
-        if (!almacen) return 'No disponible';
-        return almacen.nombre || almacen.descripcion || `Cámara #${almacen.id || almacen}`;
-    };
-
-    const getNombreEnvase = (envase) => {
-        if (!envase) return '—';
-        return envase.nombre || envase.descripcion || String(envase);
+    const getNombreEnvase = (item) => {
+        return item.nombre_embace || '—';
     };
 
     const formatDateTime = (fecha, hora) => {
-        const dateLabel = fecha ? String(fecha) : '';
-        const timeLabel = hora ? String(hora) : '';
-        return [dateLabel, timeLabel].filter(Boolean).join(' | ');
+        return [fecha, hora].filter(Boolean).join(' | ');
     };
 
     const formatKilos = (kilos) => {
@@ -108,13 +90,17 @@ export default function Salidas() {
 
     useEffect(() => {
         document.body.style.overflow = 'hidden';
-        fetchEntradas();
+        fetchTraspasos();
         return () => { document.body.style.overflow = 'auto'; };
     }, []);
 
-    const filteredEntradas = entradas.filter((entry) => {
-        const tipo = String(entry.tipo_movimiento || entry.tipo || '').trim().toLowerCase();
-        return tipo === 'salida';
+    // 🎯 FILTRADO EXACTO: Buscamos palabras clave asociadas a Traspasos o Transferencias entre cámaras
+    const filteredTraspasos = movimientos.filter((entry) => {
+        const concepto = String(entry.nombre_concepto || '').trim().toLowerCase();
+        const origenTipo = String(entry.origen_modelo || '').trim().toLowerCase();
+        const destinoTipo = String(entry.destino_modelo || '').trim().toLowerCase();
+        
+        return concepto.includes('traspaso') || (origenTipo === 'almacen' && destinoTipo === 'almacen');
     });
 
     return (
@@ -129,7 +115,7 @@ export default function Salidas() {
                         <button className="menu-hamburger" onClick={() => setIsCollapsed(!isCollapsed)}>
                             <SidebarIcon name="menu" />
                         </button>
-                        <h1>Flujo de Almacén - Congeladora SNZ</h1>
+                        <h1>Control de Cámaras Frigoríficas - Congeladora SNZ</h1>
                     </div>
                 </header>
 
@@ -137,9 +123,9 @@ export default function Salidas() {
                     <div className="personal-screen">
 
                         <div className="section-header">
-                            <h2>Historial de Salidas</h2>
+                            <h2>Movimientos entre Almacenes (Traspasos)</h2>
                             <button className="btn-add" onClick={() => setShowModal(true)}>
-                                <Icon name="plus" /> <span>Registrar Salida</span>
+                                <Icon name="plus" /> <span>Registrar Traspaso</span>
                             </button>
                         </div>
 
@@ -155,81 +141,73 @@ export default function Salidas() {
                                     <thead>
                                         <tr>
                                             <th style={{ width: '80px' }}>ID</th>
-                                            <th>Cliente</th>
                                             <th>Producto</th>
-                                            <th>Tipo</th>
-                                            <th style={{ textAlign: 'right' }}>Unidades</th>
-                                            <th style={{ textAlign: 'right' }}>Kilos</th>
+                                            <th>Cámara Origen</th>
+                                            <th style={{ width: '40px', textAlign: 'center' }}><Icon name="exchange" /></th>
+                                            <th>Cámara Destino</th>
+                                            <th style={{ textAlign: 'right' }}>Bultos/Pzs</th>
+                                            <th style={{ textAlign: 'right' }}>Kilos Netos</th>
                                             <th style={{ textAlign: 'center' }}>Fecha / Hora</th>
-                                            <th>Lote</th>
-                                            <th>Almacén</th>
+                                            <th>Lote Juliano</th>
                                             <th>Envase</th>
-                                            <th style={{ width: '120px', textAlign: 'center' }}>Acciones</th>
+                                            <th style={{ width: '100px', textAlign: 'center' }}>Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {loading ? (
                                             <tr>
-                                                <td colSpan="10" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
-                                                    Cargando flujos de inventario...
+                                                <td colSpan="11" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+                                                    Cargando bitácora de traspasos...
                                                 </td>
                                             </tr>
-                                        ) : filteredEntradas.length === 0 ? (
+                                        ) : filteredTraspasos.length === 0 ? (
                                             <tr>
-                                                <td colSpan="10" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
-                                                    No se encontraron registros de movimientos en esta sección.
+                                                <td colSpan="11" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+                                                    No se registran movimientos de traspaso entre cámaras frigoríficas.
                                                 </td>
                                             </tr>
                                         ) : (
-                                            filteredEntradas.map((e) => (
+                                            filteredTraspasos.map((e) => (
                                                 <tr key={e.id}>
                                                     <td><strong>#{e.id}</strong></td>
                                                     <td>
-                                                        <span className="user-name">{(e.nombre_cliente)}</span>
+                                                        <span className="user-name" style={{ fontWeight: '600' }}>{getNombreProducto(e)}</span>
                                                     </td>
                                                     <td>
-                                                        <span className="user-name">{getNombreProducto(e.nombre_producto)}</span>
+                                                        <span className="user-cargo" style={{ color: '#ef4444', fontWeight: '500' }}>
+                                                            {e.nombre_origen || 'Desconocido'}
+                                                        </span>
                                                     </td>
+                                                    <td style={{ textAlign: 'center', color: '#64748b' }}>➔</td>
                                                     <td>
-                                                        <span className={`status-pill ${String(e.tipo_movimiento || e.tipo || '').trim().toLowerCase() === 'entrada' ? 'activo' : 'inactivo'}`} style={{ fontSize: '0.75rem' }}>
-                                                            {e.tipo_movimiento || e.tipo || 'Salida'}
+                                                        <span className="user-cargo" style={{ color: '#10b981', fontWeight: '500' }}>
+                                                            {e.nombre_destino || 'Desconocido'}
                                                         </span>
                                                     </td>
                                                     <td style={{ textAlign: 'right', fontWeight: '600' }}>
-                                                        {e.unidades != null ? e.unidades : '0'} pzs
+                                                        {e.unidades ?? 0} pzs
                                                     </td>
                                                     <td style={{ textAlign: 'right', color: '#047857', fontWeight: '600' }}>
-                                                        {formatKilos(e.kilos)} kg
+                                                        {formatKilos(e.kilos_netos || e.kilos)} kg
                                                     </td>
                                                     <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
                                                         {formatDateTime(e.fecha, e.hora)}
                                                     </td>
                                                     <td>
-                                                        <span className="dept-tag" style={{ background: '#f1f5f9', color: '#334155' }}>
+                                                        <span className="dept-tag" style={{ background: '#f1f5f9', color: '#334155', letterSpacing: '0.5px' }}>
                                                             {e.lote || 'Sin Lote'}
                                                         </span>
                                                     </td>
                                                     <td>
-                                                        <span className="user-cargo">{(e.nombre_almacen)}</span>
+                                                        <span className="user-cargo">{getNombreEnvase(e)}</span>
                                                     </td>
-                                                    <td>
-                                                        <span className="user-cargo">{getNombreEnvase(e.nombre_embace)}</span>
-                                                    </td>
-                                                    <td className="actions-cell">
+                                                    <td className="actions-cell" style={{ textAlign: 'center' }}>
                                                         <button
                                                             className="btn-icon edit"
-                                                            onClick={() => navigate(`/salidas/${e.id}`)}
-                                                            title="Ver detalle completo"
+                                                            onClick={() => navigate(`/traspasos/${e.id}`)}
+                                                            title="Ver auditoría de movimiento"
                                                         >
                                                             <Icon name="view" />
-                                                        </button>
-                                                        <button
-                                                            className="btn-icon"
-                                                            style={{ color: '#eab308' }}
-                                                            onClick={() => navigate(`/salidas/editar/${e.id}`)}
-                                                            title="Modificar registro"
-                                                        >
-                                                            <Icon name="edit" />
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -245,9 +223,9 @@ export default function Salidas() {
             </main>
 
             {showModal && (
-                <FormMovSal
+                <FormMovTraspaso
                     onClose={() => setShowModal(false)}
-                    onRefresh={fetchEntradas}
+                    onRefresh={fetchTraspasos}
                 />
             )}
         </div>

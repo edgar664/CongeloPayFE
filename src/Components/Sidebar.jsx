@@ -131,8 +131,8 @@ const Sidebar = ({ handleLogout, collapsed }) => {
             path: '/productos',
             submenu: [
                 { label: 'Inventario Fruta', path: '/productos' },
-                { label: 'Entradas', path: '/entradas' },
-                { label: 'Salidas', path: '/salidas' },
+                { label: 'Movimientos', path: '/entradas' },
+                { label: 'Traspasos', path: '/salidas' },
             ],
         },
         {

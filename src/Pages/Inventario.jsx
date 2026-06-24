@@ -1,19 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Sidebar, Icon as SidebarIcon } from '../Components/Sidebar'; 
-import FormProd from './FormProd'; 
-import FormProdEd from './FormProdEd'; 
-import { ENDPOINTS } from '../api'; 
+import { Sidebar, Icon as SidebarIcon } from '../Components/Sidebar';
+import { ENDPOINTS } from '../api';
 import './personal.css'; // Reutiliza el CSS estructurado y estilizado del dashboard
 import './dashboard.css';
 
 const Icon = ({ name }) => {
     const icons = {
-        plus: <path d="M12 5v14M5 12h14" />,
         search: <circle cx="11" cy="11" r="8"></circle>,
-        edit: <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 2 2 2h14a2 2 0 0 2 2-2v-7"></path>,
-        trash: <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>,
+        refresh: <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />,
         menu: <path d="M3 12h18M3 6h18M3 18h18" />,
-        close: <path d="M18 6L6 18M6 6l12 12" />
+        box: <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
     };
     return (
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -22,85 +18,70 @@ const Icon = ({ name }) => {
     );
 };
 
-export default function Inventario() {
+export default function StockInventario() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
-    const [inventory, setInventory] = useState([]);
+    const [stockList, setStockList] = useState([]);
     const [search, setSearch] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [showModal, setShowModal] = useState(false); 
-    // 1. Estado para almacenar el producto que se va a editar
-    const [editingProduct, setEditingProduct] = useState(null); 
 
-    const API_URL = ENDPOINTS.productos;
+    // 🔗 Apuntamos al endpoint que consulta el Stock de la Base de Datos
+    // Si no lo tienes en ENDPOINTS, puedes mapearlo directamente como: `${API_BASE_URL}/apiInv/stock/` o el que corresponda
+    const API_URL = ENDPOINTS.stock;
 
-    const loadInventory = async () => {
+    const loadStock = async () => {
         try {
             setLoading(true);
             setError(null);
-            const response = await fetch(API_URL);
+
+            const token = localStorage.getItem('token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Token ${token}`;
+
+            const response = await fetch(API_URL, { headers });
             if (!response.ok) {
-                throw new Error(`Error al cargar inventario: ${response.status}`);
+                throw new Error(`Error al cargar existencias: ${response.status}`);
             }
             const data = await response.json();
-            
-            const finalData = Array.isArray(data) 
-                ? data 
+
+            const finalData = Array.isArray(data)
+                ? data
                 : (data.results || data.data || []);
-                
-            setInventory(finalData);
-            console.log("Productos cargados exitosamente:", finalData);
+
+            setStockList(finalData);
+            console.log("📈 Stock cargado exitosamente:", finalData);
         } catch (err) {
             console.error(err);
-            setError("No se pudo conectar con el servidor de inventarios.");
+            setError("No se pudo conectar con el servidor para obtener las existencias actuales.");
         } finally {
             setLoading(false);
         }
     };
 
-    const getQrCodeUrl = (item) => {
-        const payload = `producto:${item.id}:${item.nombre || ''}:Cat-${item.categoria || 'Gral'}`;
-        return `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(payload)}`;
-    };
-
     useEffect(() => {
         document.body.style.overflow = 'hidden';
-        loadInventory();
+        loadStock();
         return () => { document.body.style.overflow = 'auto'; };
     }, []);
 
-    // 2. Función para activar la edición de un producto
-    const handleEdit = (product) => {
-        setEditingProduct(product);
-        setShowModal(true);
-    };
-
-    const handleDelete = async (id) => {
-        if (!window.confirm('¿Eliminar este producto del inventario de forma permanente?')) return;
-        try {
-            await fetch(`${API_URL}${id}/`, { method: 'DELETE' });
-            loadInventory(); 
-        } catch (e) { 
-            alert("Error al eliminar el producto"); 
-        }
-    };
-
-    const filteredInventory = useMemo(() => {
+    // 🔍 Filtro inteligente para buscar por Producto, Lote o Almacén
+    const filteredStock = useMemo(() => {
         const query = search.trim().toLowerCase();
-        if (!query) return inventory;
-        return inventory.filter(
+        if (!query) return stockList;
+        return stockList.filter(
             item =>
-                item.nombre?.toLowerCase().includes(query) ||
-                item.categoria?.toLowerCase().includes(query)
+                item.nombre_producto?.toLowerCase().includes(query) ||
+                item.lote?.toLowerCase().includes(query) ||
+                item.nombre_almacen?.toLowerCase().includes(query)
         );
-    }, [inventory, search]);
+    }, [stockList, search]);
 
     return (
         <div className={`pro-dashboard ${isCollapsed ? 'collapsed' : ''} ${menuOpen ? 'menu-open' : ''}`}>
             {menuOpen && <div className="menu-overlay" onClick={() => setMenuOpen(false)}></div>}
-            
-            <Sidebar collapsed={isCollapsed} handleLogout={() => { localStorage.removeItem('token'); window.location.href='/login'; }} />
+
+            <Sidebar collapsed={isCollapsed} handleLogout={() => { localStorage.removeItem('token'); window.location.href = '/login'; }} />
 
             <main className="pro-main">
                 <header className="pro-top-nav">
@@ -108,17 +89,17 @@ export default function Inventario() {
                         <button className="menu-hamburger" onClick={() => setIsCollapsed(!isCollapsed)}>
                             <SidebarIcon name="menu" />
                         </button>
-                        <h1>Control de Inventario - Congeladora SNZ</h1>
+                        <h1>Existencias de Inventario - Congeladora SNZ</h1>
                     </div>
                 </header>
 
                 <div className="pro-content-scroll">
                     <div className="personal-screen">
-                        
+
                         <div className="section-header">
-                            <h2>Productos Registrados</h2>
-                            <button className="btn-add" onClick={() => { setEditingProduct(null); setShowModal(true); }}>
-                                <Icon name="plus" /> <span>Agregar Producto</span>
+                            <h2>Existencias Reales en Cámaras</h2>
+                            <button className="btn-add" style={{ backgroundColor: '#0f172a' }} onClick={loadStock}>
+                                <Icon name="refresh" /> <span>Actualizar Stock</span>
                             </button>
                         </div>
 
@@ -127,11 +108,11 @@ export default function Inventario() {
                             <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#fff', padding: '10px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.03)', gap: '10px' }}>
                                 <Icon name="search" />
                                 <input
-                                    id="inventario-search"
+                                    id="stock-search"
                                     type="text"
                                     value={search}
                                     onChange={event => setSearch(event.target.value)}
-                                    placeholder="Buscar por nombre de producto o categoría..."
+                                    placeholder="Buscar por producto, número de lote juliano o cámara/almacén..."
                                     style={{
                                         width: "100%",
                                         border: "none",
@@ -156,69 +137,64 @@ export default function Inventario() {
                                     <thead>
                                         <tr>
                                             <th style={{ width: '80px' }}>ID</th>
-                                            <th>Nombre del Producto</th>
-                                            <th>Categoría</th>
-                                            <th style={{ textAlign: "right" }}>Unidades</th>
-                                            <th style={{ textAlign: "right" }}>Kilos Totales</th>
-                                            <th style={{ textAlign: "right" }}>Precio Unitario</th>
-                                            <th style={{ textAlign: "center" }}>Código QR</th>
-                                            <th style={{ textAlign: "center", width: '120px' }}>Acciones</th>
+                                            <th>Producto</th>
+                                            <th>No. de Lote</th>
+                                            <th>Ubicación / Cámara</th>
+                                            <th style={{ textAlign: "right" }}>Unidades Disponibles</th>
+                                            <th style={{ textAlign: "right" }}>Kilos Netos Totales</th>
+                                            <th style={{ textAlign: "center" }}>Estatus</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {loading ? (
                                             <tr>
-                                                <td colSpan="8" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
-                                                    Cargando inventarios...
+                                                <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+                                                    Calculando existencias en tiempo real...
                                                 </td>
                                             </tr>
-                                        ) : filteredInventory.length === 0 ? (
+                                        ) : filteredStock.length === 0 ? (
                                             <tr>
-                                                <td colSpan="8" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
-                                                    No se encontraron productos en el inventario.
+                                                <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+                                                    No se encontraron registros de stock que coincidan.
                                                 </td>
                                             </tr>
                                         ) : (
-                                            filteredInventory.map(item => (
+                                            filteredStock.map(item => (
                                                 <tr key={item.id}>
                                                     <td><strong>#{item.id}</strong></td>
-                                                    <td><span className="user-name">{item.nombre}</span></td>
+                                                    {/* Cambia la celda del producto por esta estructura más segura: */}
                                                     <td>
-                                                        <span className="dept-tag" style={{ background: '#f1f5f9', color: '#334155' }}>
-                                                            {item.categoria || 'Sin categoría'}
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <div style={{ color: '#64748b' }}><Icon name="box" /></div>
+                                                            <span className="user-name" style={{ fontWeight: '500' }}>
+                                                                {item.nombre_producto || item.producto_nombre || (item.producto ? `Producto #${item.producto}` : 'Sin Nombre')}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span style={{ fontFamily: 'monospace', background: '#f8fafc', padding: '4px 8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontWeight: 'bold', color: '#334155' }}>
+                                                            {item.lote}
                                                         </span>
                                                     </td>
-                                                    <td style={{ textAlign: "right", fontWeight: '600' }}>{item.unidades} </td>
-                                                    <td style={{ textAlign: "right", color: '#047857', fontWeight: '600' }}>{item.kilos} kg</td>
-                                                    <td style={{ textAlign: "right" }}>${item.precio}</td>
-                                                    <td className="qr-cell" style={{ textAlign: 'center' }}>
-                                                        <img 
-                                                            src={getQrCodeUrl(item)} 
-                                                            alt={`QR ${item.nombre}`} 
-                                                            width="55" 
-                                                            height="55" 
-                                                            style={{ borderRadius: '6px', border: '1px solid #e2e8f0' }}
-                                                        />
+                                                    <td>
+                                                        <span className="dept-tag" style={{ background: '#eff6ff', color: '#1e40af', fontWeight: '500' }}>
+                                                            {item.nombre_almacen || `Cámara #${item.almacen || item.almacen_id}`}
+                                                        </span>
                                                     </td>
-                                                    <td className="actions-cell" style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                                        {/* 3. BOTÓN DE EDICIÓN AGREGADO */}
-                                                        <button 
-                                                            className="btn-icon edit" 
-                                                            onClick={() => handleEdit(item)}
-                                                            title="Editar producto"
-                                                            style={{ color: '#3b82f6', background: 'transparent', border: 'none', cursor: 'pointer' }}
-                                                        >
-                                                            <Icon name="edit" />
-                                                        </button>
-
-                                                        <button 
-                                                            className="btn-icon delete" 
-                                                            onClick={() => handleDelete(item.id)}
-                                                            title="Eliminar de inventario"
-                                                            style={{ color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer' }}
-                                                        >
-                                                            <Icon name="trash" />
-                                                        </button>
+                                                    <td style={{ textAlign: "right", fontWeight: '700', fontSize: '1.05rem' }}>
+                                                        {Number(item.unidades).toLocaleString()} 
+                                                    </td>
+                                                    <td style={{ textAlign: "right", color: '#047857', fontWeight: '700', fontSize: '1.05rem' }}>
+                                                        {Number(item.kilos_netos).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg
+                                                    </td>
+                                                    <td style={{ textAlign: "center" }}>
+                                                        {item.unidades <= 0 ? (
+                                                            <span style={{ background: '#fef2f2', color: '#991b1b', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '700' }}>Agotado</span>
+                                                        ) : item.unidades <= 10 ? (
+                                                            <span style={{ background: '#fff7ed', color: '#9a3412', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '700' }}>Stock Bajo</span>
+                                                        ) : (
+                                                            <span style={{ background: '#f0fdf4', color: '#166534', padding: '4px 10px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '700' }}>Disponible</span>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))
@@ -231,15 +207,6 @@ export default function Inventario() {
                     </div>
                 </div>
             </main>
-
-            {/* 4. Pasar el objeto seleccionado o null al FormProd */}
-            {showModal && (
-                <FormProdEd
-                    productToEdit={editingProduct} 
-                    onClose={() => { setShowModal(false); setEditingProduct(null); }} 
-                    onRefresh={loadInventory} 
-                />
-            )}
         </div>
     );
 }
