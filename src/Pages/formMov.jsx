@@ -264,32 +264,12 @@ export default function FormMov({ onClose, onRefresh }) {
                             <label style={{ color: '#c2410c', fontWeight: '700' }}> Lote de Materia Prima a Consumir *</label>
                             <select name="lote_origen" value={formData.lote_origen} onChange={handleChange} required={esProductoTerminado}>
                                 <option value="">-- Selecciona el Lote de Fruta a transformar --</option>
-                                {lotesDisponibles.map(st => {
-                                    // 1. Intentar leer lo que venga del serializer
-                                    let prodNombre = st.nombre_producto;
-                                    let almNombre = st.nombre_almacen;
-
-                                    // 2. Extraer el ID buscando variantes comunes por si viene con otro nombre
-                                    const pId = st.producto_id || (typeof st.producto === 'object' ? st.producto?.id : st.producto);
-                                    const aId = st.almacen_id || (typeof st.almacen === 'object' ? st.almacen?.id : st.almacen);
-
-                                    // 3. Buscar en los catálogos locales de React
-                                    if (!prodNombre && pId) {
-                                        const matchP = productos.find(p => String(p.id) === String(pId));
-                                        if (matchP) prodNombre = matchP.nombre;
-                                    }
-
-                                    if (!almNombre && aId) {
-                                        const matchA = almacenes.find(a => String(a.id) === String(aId));
-                                        if (matchA) almNombre = matchA.nombre;
-                                    }
-
-                                    return (
-                                        <option key={st.id} value={st.lote}>
-                                            Lote: {st.lote} | {prodNombre || `Prod #${pId || '?'}`} | Disp: {st.kilos_netos} kg ({almNombre || `Cám #${aId || '?'}`})
-                                        </option>
-                                    );
-                                })}
+                                {lotesDisponibles.map(st => (
+                                    <option key={st.id} value={st.lote}>
+                                        {/* 🌟 Usamos exactamente las llaves manuales de tu vista en Django */}
+                                        Lote: {st.lote} | {st.producto_nombre} | Disp: {st.kilos_netos} kg ({st.almacen_nombre})
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     )}

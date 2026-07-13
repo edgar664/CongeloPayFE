@@ -5,7 +5,7 @@ export const ENDPOINTS = {
     login: `${BASE_URL}/usuarios/login/`,
     empleados: `${BASE_URL}/apiEmp/empleados/`,
     entradas: `${BASE_URL}/apiInv/entradas/`,
-    facturas: `${BASE_URL}/apiProv/facturas/`, 
+    facturas: `${BASE_URL}apiProv/facturas/`, 
     facturasCli: `${BASE_URL}/apiCli/facturas/`, 
     pagos: `${BASE_URL}/apiProv/pagos/`, 
     
@@ -17,8 +17,8 @@ export const ENDPOINTS = {
     conceptos: `${BASE_URL}apiInv/conceptos/`,
     embaces: `${BASE_URL}apiInv/embaces/`,
     tarimas: `${BASE_URL}apiInv/tarimas/`,
-    proveedores: `${BASE_URL}apiInv/proveedores/`,
-    clientes: `${BASE_URL}apiInv/clientes/`,
+    proveedores: `${BASE_URL}apiProv/proveedores/`,
+    clientes: `${BASE_URL}apiCli/clientes/`,
     stock: `${BASE_URL}apiInv/stockActual/`,
-
+    empresas: `${BASE_URL}apiEmpr/empresa/principal/`,
 };

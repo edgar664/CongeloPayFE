@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { Sidebar, Icon as SidebarIcon } from '../Components/Sidebar';
 import { ENDPOINTS } from '../api';
-import FormMov from './FormMov'; // <-- Apuntando al nuevo formulario unificado
+import FormMov from './FormMov'; 
 import './personal.css';
 import './dashboard.css';
 
@@ -56,7 +56,6 @@ export default function Entradas() {
             if (!response.ok) throw new Error(`Error en el servidor: ${response.status}`);
             const data = await response.json();
 
-            // 👇 AGREGA ESTA LÍNEA PARA INSPECCIONAR EL ERROR EN TU NAVEGADOR
             console.log("👉 DATOS QUE LLEGAN DEL BACKEND:", data);
 
             const items = Array.isArray(data)
@@ -74,20 +73,18 @@ export default function Entradas() {
             setLoading(false);
         }
     };
+
     const formatDateTime = (fechaHoraString) => {
         if (!fechaHoraString) return '---';
         const date = new Date(fechaHoraString);
 
         if (isNaN(date.getTime())) return fechaHoraString;
 
-        // Obtener la fecha en formato local (dd/mm/aaaa)
         const fechaFormateada = date.toLocaleDateString();
-
-        // Configurar la hora para que ignore segundos y milésimas
         const horaFormateada = date.toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
-            hour12: true // 👈 Déjalo en true para AM/PM o cámbialo a false para formato 24 horas
+            hour12: true 
         });
 
         return `${fechaFormateada} | ${horaFormateada}`;
@@ -99,17 +96,11 @@ export default function Entradas() {
         return isNaN(value) ? '0.00' : value.toFixed(2);
     };
 
-    // FILTRADO ADAPTADO: Identifica entradas si el destino es un Almacén y el origen es un Proveedor
-    // ✅ FILTRADO ULTRA-SEGURO POR ID O TEXTO
     const entradasFiltradas = movimientos.filter((item) => {
-        // 1. Intentar por texto si el backend está expandido
         const conceptoTexto = item.nombre_concepto?.toUpperCase() || '';
         const destinoMod = item.destino_modelo?.toLowerCase() || '';
         const origenMod = item.origen_modelo?.toLowerCase() || '';
 
-        // 2. Comprobar si es entrada por sus IDs o por sus nombres de modelo
-        // Consideramos Entrada si el concepto es 1 o 2 (Compra / Prod. Terminado)
-        // O si los textos correspondientes incluyen palabras clave de entrada
         const esEntrada =
             item.concepto === 1 ||
             item.concepto === 2 ||
@@ -119,9 +110,7 @@ export default function Entradas() {
 
         if (!esEntrada) return false;
 
-        // 3. Filtro por almacén de la barra de direcciones si existe
         if (almacenIdFiltro) {
-            // Compara tanto contra destino_id como contra el destino directo por si viene plano
             const destinoId = item.destino_id || item.destino;
             return String(destinoId) === String(almacenIdFiltro);
         }
@@ -155,7 +144,7 @@ export default function Entradas() {
 
                         <div className="section-header">
                             <div>
-                                <h2>Historial de Entradas</h2>
+                                <h2>Historial de Movimientos</h2>
                                 {almacenIdFiltro && (
                                     <span style={{
                                         display: 'inline-block', background: '#eff6ff', color: '#1d4ed8',
@@ -173,7 +162,7 @@ export default function Entradas() {
                                 )}
                             </div>
                             <button className="btn-add" onClick={() => setShowModal(true)}>
-                                <Icon name="plus" /> <span>Registrar Entrada</span>
+                                <Icon name="plus" /> <span>Registrar Mov.</span>
                             </button>
                         </div>
 
@@ -198,19 +187,20 @@ export default function Entradas() {
                                             <th>Lote</th>
                                             <th>Destino (Almacén)</th>
                                             <th>Envase</th>
+                                            <th>Lote Origen</th>
                                             <th style={{ width: '120px', textAlign: 'center' }}>Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {loading ? (
                                             <tr>
-                                                <td colSpan="11" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+                                                <td colSpan="12" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
                                                     Cargando flujos de inventario...
                                                 </td>
                                             </tr>
                                         ) : entradasFiltradas.length === 0 ? (
                                             <tr>
-                                                <td colSpan="11" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+                                                <td colSpan="12" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
                                                     No se encontraron registros de Entradas para este criterio.
                                                 </td>
                                             </tr>
@@ -230,7 +220,7 @@ export default function Entradas() {
                                                         {formatKilos(e.kilos_netos)} kg
                                                     </td>
                                                     <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
-                                                        {(e.fecha)}|{(e.hora)}
+                                                        {e.fecha} | {e.hora}
                                                     </td>
                                                     <td>
                                                         <span className="dept-tag" style={{ background: '#f1f5f9', color: '#334155' }}>
@@ -239,7 +229,8 @@ export default function Entradas() {
                                                     </td>
                                                     <td><span className="user-cargo">{e.nombre_destino || `Almacén #${e.destino_id}`}</span></td>
                                                     <td><span className="user-cargo">{e.nombre_embace || 'Ninguno'}</span></td>
-                                                    <td className="actions-cell">
+                                                    <td><span className="user-cargo">{e.lote_origen || '---'}</span></td>
+                                                    <td className="actions-cell" style={{ textAlign: 'center' }}>
                                                         <button className="btn-icon edit" onClick={() => navigate(`/entradas/${e.id}`)} title="Ver detalle">
                                                             <Icon name="view" />
                                                         </button>

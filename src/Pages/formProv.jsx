@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import './formEmp.css'; // Reutilizamos tus estilos existentes del modal
-import { ENDPOINTS } from '../api'; // Importamos tus rutas dinámicas centralizadas
+import './formEmp.css'; // Reutiliza tus estilos existentes del modal
+import { ENDPOINTS } from '../api'; // Importa tus rutas dinámicas centralizadas
 
-export default function FormCli({ onClose, onRefresh }) {
-    // Estado inicial limpio basado exclusivamente en el modelo Cliente de Django
+export default function FormProv({ onClose, onRefresh }) {
+    // Estado inicial limpio basado exclusivamente en el modelo Proveedor de Django
     const [formData, setFormData] = useState({
         nombre: '',
         rfc: '',
@@ -33,8 +33,8 @@ export default function FormCli({ onClose, onRefresh }) {
         };
 
         try {
-            // Se realiza la petición apuntando a ENDPOINTS.clientes
-            const response = await fetch(ENDPOINTS.clientes, {
+            // Se realiza la petición apuntando a ENDPOINTS.proveedores
+            const response = await fetch(ENDPOINTS.proveedores, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -45,12 +45,11 @@ export default function FormCli({ onClose, onRefresh }) {
             const data = await response.json();
 
             if (response.ok) {
-                alert('¡ÉXITO! Cliente registrado correctamente.');
-                onRefresh(); // Refresca la tabla del componente padre (Listado de Clientes)
+                alert('¡ÉXITO! Proveedor registrado correctamente.');
+                onRefresh(); // Refresca la tabla del componente padre (Listado de Proveedores)
                 onClose();   // Cierra el modal automático
             } else {
                 console.error('Django dice:', data);
-                // Si el RFC ya existe u otro error de restricción, Django lo devolverá aquí
                 alert('Error de validación en Django: ' + JSON.stringify(data));
             }
         } catch (error) {
@@ -63,7 +62,7 @@ export default function FormCli({ onClose, onRefresh }) {
         <div className="form-overlay">
             <div className="form-modal-container">
                 <div className="form-header">
-                    <h2>Nuevo Cliente</h2>
+                    <h2>Nuevo Proveedor</h2>
                     <button className="btn-close-x" onClick={onClose}>&times;</button>
                 </div>
                 
@@ -77,7 +76,7 @@ export default function FormCli({ onClose, onRefresh }) {
                             name="nombre" 
                             value={formData.nombre} 
                             onChange={handleChange} 
-                            placeholder="Ej: Comercializadora de Alimentos S.A."
+                            placeholder="Ej: Agrícola y Frutos del Valle S.P.R."
                             required 
                         />
                     </div>
@@ -116,7 +115,7 @@ export default function FormCli({ onClose, onRefresh }) {
                             name="email" 
                             value={formData.email} 
                             onChange={handleChange} 
-                            placeholder="cliente@logistica.com"
+                            placeholder="proveedor@logistica.com"
                         />
                     </div>
 
@@ -143,7 +142,7 @@ export default function FormCli({ onClose, onRefresh }) {
                     {/* Acciones del Footer */}
                     <div className="f-actions-footer" style={{ gridColumn: 'span 2' }}>
                         <button type="button" className="btn-cancelar" onClick={onClose}>Cancelar</button>
-                        <button type="submit" className="btn-guardar">Guardar Cliente</button>
+                        <button type="submit" className="btn-guardar">Guardar Proveedor</button>
                     </div>
 
                 </form>

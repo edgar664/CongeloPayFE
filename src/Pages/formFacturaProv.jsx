@@ -1,92 +1,88 @@
 import React, { useState, useEffect } from 'react';
-import './formEmp.css'; // Reutiliza los estilos estructurales del modal grid
+import './formEmp.css'; 
 import { ENDPOINTS } from '../api'; 
 
 export default function FormFactura({ onClose, onRefresh }) {
     const [proveedores, setProveedores] = useState([]);
-    // Guardaremos TODOS los movimientos de entrada en este estado
-    const [todosLosMovimientos, setTodosLosMovimientos] = useState([]);
-    // Este estado contendrá los movimientos ya filtrados por el proveedor activo
-    const [movimientosFiltrados, setMovimientosFiltrados] = useState([]);
+    const [movimientosPendientes, setMovimientosPendientes] = useState([]);
     const [loadingLists, setLoadingLists] = useState(true);
+    const [loadingEntradas, setLoadingEntradas] = useState(false);
 
     const [formData, setFormData] = useState({
         proveedor: '',
-        numero_factura: '',
-        fecha_emision: '',
+        numero: '',
+        fecha: '',
         fecha_vencimiento: '',
-        monto_total: '',
-        movimiento: [] // Array para almacenar los IDs seleccionados
+        precio_por_kilo: '',
+        movimientos_ids: [],
+        concepto: '',
+        observaciones: ''
     });
 
-    // 1. Cargar catálogos iniciales al montar el modal
+    // 1. Obtener los proveedores autorizados al abrir el formulario
     useEffect(() => {
-        const cargarCatalogos = async () => {
+        const cargarProveedores = async () => {
             try {
                 setLoadingLists(true);
                 const token = localStorage.getItem('token');
                 const headers = { 'Content-Type': 'application/json' };
                 if (token) headers['Authorization'] = `Token ${token}`;
 
-                // Obtener Proveedores
                 const resProv = await fetch(ENDPOINTS.proveedores, { headers });
                 const dataProv = await resProv.json();
                 const listaProv = Array.isArray(dataProv) ? dataProv : (dataProv.results || []);
                 setProveedores(listaProv);
-
-                // Obtener Movimientos generales
-                const resMov = await fetch(ENDPOINTS.movimientos, { headers });
-                const dataMov = await resMov.json();
-                const listaMov = Array.isArray(dataMov) ? dataMov : (dataMov.results || []);
-                
-                // Guardar en memoria únicamente las entradas que NO estén facturadas aún (enFactura === false)
-                const entradasPendientes = listaMov.filter(m => 
-                    String(m.tipo_movimiento || m.tipo || '').trim().toLowerCase() === 'entrada' &&
-                    !m.enFactura // Filtro crucial para no duplicar facturas
-                );
-                
-                setTodosLosMovimientos(entradasPendientes);
-
             } catch (error) {
-                console.error("Error al cargar dependencias del formulario:", error);
+                console.error("Error al cargar proveedores:", error);
             } finally {
                 setLoadingLists(false);
             }
         };
-
-        cargarCatalogos();
+        cargarProveedores();
     }, []);
 
-    // 2. EFECTO: Cada vez que el id del proveedor cambie, filtramos los movimientos correspondientes
+    // 2. Traer las entradas pendientes exclusivamente cuando se elija un proveedor
     useEffect(() => {
         if (!formData.proveedor) {
-            setMovimientosFiltrados([]);
+            setMovimientosPendientes([]);
             return;
         }
 
-        // Filtramos para dejar solo los movimientos que coincidan con el ID del proveedor seleccionado
-        const filtrados = todosLosMovimientos.filter(m => 
-            Number(m.proveedor) === Number(formData.proveedor)
-        );
+        const cargarEntradasPendientes = async () => {
+            try {
+                setLoadingEntradas(true);
+                const token = localStorage.getItem('token');
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = `Token ${token}`;
 
-        setMovimientosFiltrados(filtrados);
-    }, [formData.proveedor, todosLosMovimientos]);
+                // Petición al endpoint dinámico estructurado en Django
+                const resMov = await fetch(`${ENDPOINTS.facturas}entradas-pendientes/${formData.proveedor}/`, { headers });
+                if (!resMov.ok) throw new Error("No se pudieron obtener las remisiones");
+                
+                const dataMov = await resMov.json();
+                setMovimientosPendientes(Array.isArray(dataMov) ? dataMov : []);
+            } catch (error) {
+                console.error("Error al obtener entradas sin facturar:", error);
+                setMovimientosPendientes([]);
+            } finally {
+                setLoadingEntradas(false);
+            }
+        };
+
+        cargarEntradasPendientes();
+    }, [formData.proveedor]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        
         setFormData((prev) => {
             const updated = { ...prev, [name]: value };
-            
-            // Si el usuario cambia el proveedor, vaciamos la selección de movimientos anterior
             if (name === 'proveedor') {
-                updated.movimiento = [];
+                updated.movimientos_ids = []; // Resetear selección previa de entradas
             }
             return updated;
         });
     };
 
-    // Manejador especial para el select múltiple
     const handleMultiSelectChange = (e) => {
         const options = e.target.options;
         const selectedIds = [];
@@ -97,7 +93,7 @@ export default function FormFactura({ onClose, onRefresh }) {
         }
         setFormData((prev) => ({
             ...prev,
-            movimiento: selectedIds
+            movimientos_ids: selectedIds
         }));
     };
 
@@ -106,11 +102,13 @@ export default function FormFactura({ onClose, onRefresh }) {
 
         const dataToSend = {
             proveedor: Number(formData.proveedor),
-            numero_factura: formData.numero_factura.trim(),
-            fecha_emision: formData.fecha_emision,
+            numero: formData.numero.trim(),
+            fecha: formData.fecha,
             fecha_vencimiento: formData.fecha_vencimiento,
-            monto_total: parseFloat(formData.monto_total) || 0.00,
-            movimiento: formData.movimiento 
+            precio_por_kilo: parseFloat(formData.precio_por_kilo) || 0.00,
+            movimientos_ids: formData.movimientos_ids,
+            concepto: formData.concepto.trim(),
+            observaciones: formData.observaciones.trim()
         };
 
         try {
@@ -127,31 +125,23 @@ export default function FormFactura({ onClose, onRefresh }) {
             const data = await response.json();
 
             if (response.ok) {
-                alert('¡ÉXITO! Factura de proveedor guardada correctamente.');
+                alert('¡ÉXITO! Factura procesada. El saldo se ha cargado a la cuenta del proveedor.');
                 onRefresh();
                 onClose();
             } else {
-                console.error('Django Rest Framework retornó:', data);
-                alert('Error al validar campos: ' + JSON.stringify(data));
+                alert('Campos no válidos: ' + JSON.stringify(data));
             }
         } catch (error) {
-            console.error('Error de conexión:', error);
-            alert('No se pudo conectar con el servidor.');
+            console.error('Error de red:', error);
+            alert('Fallo de comunicación con el servidor.');
         }
-    };
-
-    const renderMovimientoLabel = (m) => {
-        const prodNombre = m.producto?.nombre || m.nombre_producto || `Prod #${m.producto}`;
-        const kilos = m.kilos ? `${m.kilos}kg` : '0kg';
-        const lote = m.lote ? `Lote: ${m.lote}` : 'Sin Lote';
-        return `#${m.id} - ${prodNombre} (${kilos}) - ${lote}`;
     };
 
     return (
         <div className="form-overlay">
             <div className="form-modal-container">
                 <div className="form-header">
-                    <h2>Registrar Nueva Factura de Proveedor</h2>
+                    <h2>Vincular Entradas a Nueva Factura</h2>
                     <button className="btn-close-x" onClick={onClose}>&times;</button>
                 </div>
                 
@@ -166,7 +156,7 @@ export default function FormFactura({ onClose, onRefresh }) {
                             required
                             disabled={loadingLists}
                         >
-                            <option value="">-- Selecciona un Proveedor --</option>
+                            <option value="">-- Selecciona el Proveedor para ver sus Remisiones --</option>
                             {proveedores.map(p => (
                                 <option key={p.id} value={p.id}>{p.nombre}</option>
                             ))}
@@ -177,23 +167,23 @@ export default function FormFactura({ onClose, onRefresh }) {
                         <label>Número de Factura</label>
                         <input 
                             type="text" 
-                            name="numero_factura" 
-                            value={formData.numero_factura} 
+                            name="numero" 
+                            value={formData.numero} 
                             onChange={handleChange} 
-                            placeholder="Ej. FAC-12345"
+                            placeholder="Ej. FAC-9982"
                             required 
                         />
                     </div>
 
                     <div className="f-group">
-                        <label>Monto Total ($)</label>
+                        <label>Precio por Kilo / Unidad ($)</label>
                         <input 
                             type="number" 
-                            name="monto_total" 
+                            name="precio_por_kilo" 
                             step="0.01" 
-                            value={formData.monto_total} 
+                            value={formData.precio_por_kilo} 
                             onChange={handleChange} 
-                            placeholder="0.00"
+                            placeholder="Monto base para valuar"
                             required 
                         />
                     </div>
@@ -202,8 +192,8 @@ export default function FormFactura({ onClose, onRefresh }) {
                         <label>Fecha de Emisión</label>
                         <input 
                             type="date" 
-                            name="fecha_emision" 
-                            value={formData.fecha_emision} 
+                            name="fecha" 
+                            value={formData.fecha} 
                             onChange={handleChange} 
                             required 
                         />
@@ -220,45 +210,58 @@ export default function FormFactura({ onClose, onRefresh }) {
                         />
                     </div>
 
-                    {/* Caja de selección múltiple dinámica */}
+                    <div className="f-group" style={{ gridColumn: "span 2" }}>
+                        <label>Concepto corto</label>
+                        <input 
+                            type="text" 
+                            name="concepto" 
+                            value={formData.concepto} 
+                            onChange={handleChange} 
+                            placeholder="Ej. Compra de materia prima de la semana"
+                        />
+                    </div>
+
                     <div className="f-group" style={{ gridColumn: "span 2" }}>
                         <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Vincular Entradas del Proveedor</span>
-                            <small style={{ color: '#64748b', fontWeight: '400', marginLeft: 'auto' }}>
-                                *Mantén presionado Ctrl (o Cmd) para seleccionar varias
+                            <span>Seleccionar Entradas a Facturar</span>
+                            <small style={{ color: '#475569', fontWeight: '500' }}>
+                                {loadingEntradas ? "Buscando remisiones..." : `Disponibles: ${movimientosPendientes.length}`}
                             </small>
                         </label>
                         <select 
                             multiple 
-                            name="movimiento" 
-                            value={formData.movimiento.map(String)} 
+                            name="movimientos_ids" 
+                            value={formData.movimientos_ids.map(String)} 
                             onChange={handleMultiSelectChange}
-                            style={{ height: '140px', padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                            disabled={loadingLists || !formData.proveedor}
+                            style={{ height: '150px', padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                            disabled={loadingEntradas || !formData.proveedor}
+                            required
                         >
-                            {movimientosFiltrados.length > 0 ? (
-                                movimientosFiltrados.map(m => (
+                            {movimientosPendientes.length > 0 ? (
+                                movimientosPendientes.map(m => (
                                     <option key={m.id} value={m.id}>
-                                        {renderMovimientoLabel(m)}
+                                        {`ID #${m.id} — Fecha: ${m.fecha} — Peso Neto: ${m.kilos_netos || m.kilos || 0} kg — Lote: ${m.lote || 'N/A'}`}
                                     </option>
                                 ))
                             ) : (
                                 <option disabled value="">
                                     {formData.proveedor 
-                                        ? "No hay entradas pendientes para este proveedor" 
-                                        : "-- Selecciona un proveedor primero --"
+                                        ? "No quedan entradas pendientes para liquidar de este proveedor" 
+                                        : "-- Elige un proveedor del listado superior --"
                                     }
                                 </option>
                             )}
                         </select>
-                        <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
-                            Seleccionados: {formData.movimiento.length} entradas de almacén.
+                        <p style={{ fontSize: '0.78rem', color: '#475569', marginTop: '6px', fontStyle: 'italic' }}>
+                            💡 Ctrl + Click para marcar múltiples entradas a la vez. Seleccionadas: {formData.movimientos_ids.length}
                         </p>
                     </div>
 
                     <div className="f-actions-footer" style={{ gridColumn: "span 2" }}>
                         <button type="button" className="btn-cancelar" onClick={onClose}>Cancelar</button>
-                        <button type="submit" className="btn-guardar" disabled={loadingLists || formData.movimiento.length === 0}>Crear Factura</button>
+                        <button type="submit" className="btn-guardar" disabled={formData.movimientos_ids.length === 0}>
+                            Calcular y Registrar Deuda
+                        </button>
                     </div>
 
                 </form>
