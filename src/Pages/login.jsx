@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './login.css';
-import { ENDPOINTS } from '../api'; // <-- Importas tus rutas dinámicas
+import { ENDPOINTS } from '../api';
 
 export default function Login({ onLogin }) {
     const [username, setUsername] = useState('');
@@ -16,25 +16,38 @@ export default function Login({ onLogin }) {
         setLoading(true);
         setError('');
 
+        // Limpia solo espacios al inicio/final, NO alteres las mayúsculas
+        const exactUsername = username.trim();
+
         try {
-            // Asegúrate de que termine exactamente en /
             const response = await fetch(ENDPOINTS.login, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({
+                    username: exactUsername, // <--- Enviado tal cual
+                    password: password
+                }),
             });
-
             const data = await response.json();
 
             if (response.ok) {
+                // 2. Guardar AMBOS tokens para el ciclo de vida de JWT
                 localStorage.setItem('token', data.access);
-                onLogin();
+                localStorage.setItem('refresh_token', data.refresh);
+
+                // 3. Pasar los datos del usuario (como el rol) al estado global si es necesario
+                if (onLogin) {
+                    onLogin(data.user);
+                }
+
                 navigate('/dashboard');
             } else {
-                setError(data.detail || "Usuario o contraseña incorrectos.");
+                // 4. Mapear correctamente el error enviado desde tu API de Django
+                const mensajeError = data.error || data.detail || "Usuario o contraseña incorrectos.";
+                setError(mensajeError);
             }
         } catch (err) {
-            setError(err.message || "Error de conexión con el servidor");
+            setError("Error de conexión con el servidor. Verifica tu red.");
         } finally {
             setLoading(false);
         }
@@ -52,37 +65,41 @@ export default function Login({ onLogin }) {
 
                 <form onSubmit={handleSubmit} className="login-form">
                     <div className="input-group">
-                        <label>Usuario</label>
+                        <label htmlFor="username">Usuario</label>
                         <input
+                            id="username"
                             type="text"
                             placeholder="Usuario de sistema"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             disabled={loading}
+                            autoComplete="username"
                             required
                         />
                     </div>
 
                     <div className="input-group">
-                        <label>Contraseña</label>
+                        <label htmlFor="password">Contraseña</label>
                         <input
+                            id="password"
                             type="password"
                             placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             disabled={loading}
+                            autoComplete="current-password"
                             required
                         />
                     </div>
 
                     {error && (
-                        <div className="error-container">
+                        <div className="error-container" role="alert">
                             <span>⚠️</span> {error}
                         </div>
                     )}
 
                     <button type="submit" className="login-btn" disabled={loading}>
-                        {loading ? <span className="loader"></span> : 'Iniciar Sesión'}
+                        {loading ? <span className="loader">Cargando...</span> : 'Iniciar Sesión'}
                     </button>
                 </form>
                 <footer className="login-footer">
