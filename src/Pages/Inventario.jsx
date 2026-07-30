@@ -65,16 +65,30 @@ export default function StockInventario() {
         return () => { document.body.style.overflow = 'auto'; };
     }, []);
 
-    // 🔍 Filtro inteligente para buscar por Producto, Lote o Almacén
+// 🔍 Filtro inteligente ultra seguro para buscar por Producto, Lote o Almacén
     const filteredStock = useMemo(() => {
         const query = search.trim().toLowerCase();
         if (!query) return stockList;
-        return stockList.filter(
-            item =>
-                item.nombre_producto?.toLowerCase().includes(query) ||
-                item.lote?.toLowerCase().includes(query) ||
-                item.nombre_almacen?.toLowerCase().includes(query)
-        );
+
+        return stockList.filter(item => {
+            // 1. Obtener el nombre del producto de forma idéntica a como lo renderizas
+            const nombreProducto = (
+                item.nombre_producto || 
+                item.producto_nombre || 
+                (item.producto ? `Producto #${item.producto}` : 'Sin Nombre')
+            ).toLowerCase();
+
+            // 2. Normalizar el lote y el almacén previniendo null/undefined
+            const lote = (item.lote || '').toLowerCase();
+            const almacen = (item.nombre_almacen || `Cámara #${item.almacen || item.almacen_id || ''}`).toLowerCase();
+
+            // 3. Evaluar coincidencia sin peligro de romper la app
+            return (
+                nombreProducto.includes(query) ||
+                lote.includes(query) ||
+                almacen.includes(query)
+            );
+        });
     }, [stockList, search]);
 
     return (

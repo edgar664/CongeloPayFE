@@ -2,8 +2,8 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export const ENDPOINTS = {
-    login: `${BASE_URL}/usuarios/login/`,
-    empleados: `${BASE_URL}/apiEmp/empleados/`,
+    login: `${BASE_URL}usuarios/login/`,
+    empleados: `${BASE_URL}apiEmp/empleados/`,
     entradas: `${BASE_URL}/apiInv/entradas/`,
     facturas: `${BASE_URL}apiProv/facturas/`, 
     facturasCli: `${BASE_URL}/apiCli/facturas/`, 

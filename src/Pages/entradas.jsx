@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { Sidebar, Icon as SidebarIcon } from '../Components/Sidebar';
 import { ENDPOINTS } from '../api';
-import FormMov from './FormMov'; 
+import FormMov from './FormMov';
 import './personal.css';
 import './dashboard.css';
 
@@ -84,7 +84,7 @@ export default function Entradas() {
         const horaFormateada = date.toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
-            hour12: true 
+            hour12: true
         });
 
         return `${fechaFormateada} | ${horaFormateada}`;
@@ -101,11 +101,13 @@ export default function Entradas() {
         const destinoMod = item.destino_modelo?.toLowerCase() || '';
         const origenMod = item.origen_modelo?.toLowerCase() || '';
 
+        // 💡 Modificamos aquí para incluir 'AJUSTE'
         const esEntrada =
             item.concepto === 1 ||
             item.concepto === 2 ||
             conceptoTexto.includes('COMPRA') ||
             conceptoTexto.includes('ENTRADA') ||
+            conceptoTexto.includes('AJUSTE') || // <-- Permitir ajustes de entrada en la vista
             (destinoMod.includes('almacen') && origenMod.includes('proveedor'));
 
         if (!esEntrada) return false;

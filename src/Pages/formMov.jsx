@@ -340,7 +340,7 @@ export default function FormMov({ onClose, onRefresh }) {
                             value={formData.lote}
                             onChange={handleChange}
                             required
-                            disabled={true} // 🌟 Bloqueado para evitar alteraciones accidentales del usuario
+                            //disabled={false} // 🌟 Bloqueado para evitar alteraciones accidentales del usuario
                             style={{ backgroundColor: '#e2e8f0', fontWeight: '700', color: '#0f172a' }}
                         />
                     </div>

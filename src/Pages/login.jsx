@@ -19,6 +19,10 @@ export default function Login({ onLogin }) {
         // Limpia solo espacios al inicio/final, NO alteres las mayúsculas
         const exactUsername = username.trim();
 
+        // AGREGA ESTA LÍNEA DE PRUEBA:
+        console.log("Intentando conectar a:", ENDPOINTS.login);
+
+
         try {
             const response = await fetch(ENDPOINTS.login, {
                 method: 'POST',
