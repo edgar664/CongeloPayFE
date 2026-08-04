@@ -103,7 +103,7 @@ export default function Login({ onLogin }) {
                     )}
 
                     <button type="submit" className="login-btn" disabled={loading}>
-                        {loading ? <span className="loader">Cargando...</span> : 'Iniciar Sesión'}
+                        {loading ? <span className="loader"></span> : 'Iniciar Sesión'}
                     </button>
                 </form>
                 <footer className="login-footer">

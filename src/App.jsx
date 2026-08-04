@@ -1,46 +1,49 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { CompanyProvider } from './Context/CompanyContext'; // Asegúrate de que la ruta coincida con la ubicación de tu archivo
 import Login from "./Pages/login";
 import Dashboard from './Pages/Dashboard';
+import Configuracion from './Pages/EmpresaSettings';
 
 function App() {
-  // Estado inicial basado en si existe el token en el navegador
   const [isAuth, setIsAuth] = useState(!!localStorage.getItem('token'));
 
-  // Función que llamaremos desde el Login al tener éxito
   const loginAction = () => {
     setIsAuth(true);
   };
 
-  // Función para cerrar sesión
   const logoutAction = () => {
     localStorage.removeItem('token');
     setIsAuth(false);
   };
 
   return (
-    <Router> {/* ESTA LÍNEA ES INDISPENSABLE */}
-      <Routes>
-        {/* Raíz: Redirige según si hay token o no */}
-        <Route 
-          path="/" 
-          element={isAuth ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} 
-        />
+    <Router>
+      <CompanyProvider>
+        <Routes>
+          <Route 
+            path="/" 
+            element={isAuth ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} 
+          />
 
-        {/* Login: Si ya está logueado, lo manda al dashboard automáticamente */}
-        <Route
-          path="/login"
-          element={isAuth ? <Navigate to="/dashboard" /> : <Login onLogin={loginAction} />}
-        />
+          <Route
+            path="/login"
+            element={isAuth ? <Navigate to="/dashboard" /> : <Login onLogin={loginAction} />}
+          />
 
-        {/* Dashboard Protegido */}
-        <Route
-          path="/dashboard"
-          element={isAuth ? <Dashboard onLogout={logoutAction} /> : <Navigate to="/login" />}
-        />
+          <Route
+            path="/dashboard"
+            element={isAuth ? <Dashboard onLogout={logoutAction} /> : <Navigate to="/login" />}
+          />
 
-        
-      </Routes>
+          <Route
+            path="/configuracion"
+            element={isAuth ? <Configuracion onLogout={logoutAction} /> : <Navigate to="/login" />}
+          />
+
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </CompanyProvider>
     </Router>
   );
 }

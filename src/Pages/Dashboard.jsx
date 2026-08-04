@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sidebar, Icon } from '../Components/Sidebar'; // Importamos tus componentes
+import { Sidebar } from '../Components/Sidebar';
 import './dashboard.css';
+import { Icon } from '../Components/Icon';
 
 export default function Dashboard() {
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -31,14 +32,15 @@ export default function Dashboard() {
             {menuOpen && <div className="menu-overlay" onClick={() => setMenuOpen(false)}></div>}
 
             {/* SIDEBAR */}
-            <Sidebar collapsed={isCollapsed} handleLogout={handleLogout} />
+            <Sidebar 
+                collapsed={isCollapsed} 
+                setCollapsed={setIsCollapsed} 
+                handleLogout={handleLogout} 
+            />
 
             <main className="pro-main">
                 <header className="pro-top-nav">
                     <div className="header-left">
-                        <button className="menu-hamburger" onClick={toggleMenu}>
-                            <Icon name={menuOpen ? "close" : "menu"} />
-                        </button>
                         <div className="page-title">
                             <h1>Monitoreo de Producción - Frambuesa</h1>
                             <p>Congeladora SNZ - Control de Túneles y Calidad</p>
@@ -52,7 +54,7 @@ export default function Dashboard() {
                         <div className="p-card">
                             <div className="p-card-head">
                                 <span className="label">FRAMBUESA PROCESADA (HOY)</span>
-                                <Icon name="box" /> {/* Puedes cambiarlo por un icono de báscula/fruta si tienes */}
+                                <Icon name="box" />
                             </div>
                             <div className="p-card-body">
                                 <h2>8,450 <small>kg</small></h2>
@@ -61,7 +63,7 @@ export default function Dashboard() {
                         <div className="p-card">
                             <div className="p-card-head">
                                 <span className="label">TEMP. MEDIA TÚNEL IQF</span>
-                                <Icon name="thermometer" /> {/* O el nombre de icono de temperatura que uses */}
+                                <Icon name="thermometer" />
                             </div>
                             <div className="p-card-body">
                                 <h2>-38.5 <small>°C</small></h2>

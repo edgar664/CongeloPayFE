@@ -1,218 +1,303 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { useCompany } from '../Context/CompanyContext'; // Importamos el contexto de la empresa
 import './Sidebar.css';
 
-const Icon = ({ name, className }) => {
-    const icons = {
-        box: <path d="M21 8v13H3V8M1 3h22v5H1V3zm10 8h2" />,
-        archive: <path d="M4 7h16v11H4zM4 7l8 6 8-6M9 12h6" />,
-        users: <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm14 14v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />,
-        chart: <path d="M18 20V10M12 20V4M6 20v-6" />,
-        map: <path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4zm7-4v16m8 4V6" />,
-        menu: <path d="M3 12h18M3 6h18M3 18h18" />,
-        close: <path d="M18 6L6 18M6 6l12 12" />,
-        money: <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />,
-        day: <path d="M3 8h18M3 12h18M3 16h18M5 20h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" />,
-        chevron: <path d="M6 9l6 6 6-6" />,
-        briefcase: <path d="M20 7h-12a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM12 13v-1M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />,
-        checklist: <path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v7" />
-    };
-    return (
-        <svg className={className} viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            {icons[name] || <circle cx="12" cy="12" r="10" />}
+// Iconos SVG Vectoriales de Trazo Delgado (Estilo SAP Fiori / Lucide)
+const ICONS = {
+    dashboard: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="9" rx="1" />
+            <rect x="14" y="3" width="7" height="5" rx="1" />
+            <rect x="14" y="12" width="7" height="9" rx="1" />
+            <rect x="3" y="16" width="7" height="5" rx="1" />
         </svg>
-    );
+    ),
+    inventario: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+            <path d="m3.3 7 8.7 5 8.7-5" />
+            <path d="M12 22V12" />
+        </svg>
+    ),
+    personal: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+    ),
+    chevron: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+        </svg>
+    ),
+    collapse: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M9 3v18" />
+            <path d="m14 15-3-3 3-3" />
+        </svg>
+    ),
+    expand: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M9 3v18" />
+            <path d="m12 9 3 3-3 3" />
+        </svg>
+    ),
+    logout: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+    ),
+    dot: (
+        <svg viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="2.5" />
+        </svg>
+    ),
+    sett: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 .94l-.27.54a2 2 0 1 1-3.64-2l.27-.54a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-.94l.27-.54a2 2 0 1 1 3.64 2l-.27.54a1.65 1.65 0 0 0 .33 1.82z" />
+        </svg>
+    )
 };
 
-const Sidebar = ({ handleLogout, collapsed }) => {
-    const navigate = useNavigate();
+const MODULE_GROUPS = [
+    {
+        category: 'PRINCIPAL',
+        items: [
+            { id: 'dashboard', label: 'Panel Principal', icon: 'dashboard', path: '/dashboard' }
+        ]
+    },
+    {
+        category: 'GESTIÓN OPERATIVA',
+        items: [
+            {
+                id: 'inventario',
+                label: 'Inventarios y Almacén',
+                icon: 'inventario',
+                submenu: [
+                    { label: 'Catálogo de Productos', path: '/productos' },
+                    { label: 'Entradas y Salidas', path: '/movimientos' },
+                    { label: 'Ajustes de Inventario', path: '/ajustes' }
+                ]
+            },
+            {
+                id: 'personal',
+                label: 'Recursos Humanos',
+                icon: 'personal',
+                submenu: [
+                    { label: 'Directorio de Personal', path: '/personal' },
+                    { label: 'Control de Asistencia', path: '/asistencia' }
+                ]
+            }
+        ]
+    },
+    {
+        category: 'SETTINGS',
+        items: [
+            { id: 'sett', label: 'Panel de Configuración', icon: 'sett', path: '/configuracion' }
+        ]
+    }
+];
+
+export const Sidebar = ({
+    user,
+    handleLogout,
+    collapsed = false,
+    setCollapsed = () => { }
+}) => {
+    const [openSubmenus, setOpenSubmenus] = useState({ inventario: true });
     const location = useLocation();
-    const [expandedModule, setExpandedModule] = useState(null);
 
-    // Inline unified styles to ensure sidebar behaves the same across templates
-    const styles = {
-        aside: {
-            width: collapsed ? '72px' : '240px',
-            transition: 'width 0.2s ease',
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100vh',
-            background: '#0f1724',
-            color: '#e6eef8',
-            boxSizing: 'border-box',
-            overflow: 'auto',
-        },
-        proLogo: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '16px',
-            borderBottom: '1px solid rgba(255,255,255,0.03)'
-        },
-        logoSymbol: {
-            width: '36px',
-            height: '36px',
-            borderRadius: '6px',
-            background: '#0ea5a4',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: '700'
-        },
-        proMenu: { padding: '8px 0', flex: 1 },
-        menuItem: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '10px 16px',
-            cursor: 'pointer',
-            userSelect: 'none'
-        },
-        menuLabel: { flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-        chevronIcon: { marginLeft: '8px', transition: 'transform 0.2s' },
-        submenu: { paddingLeft: '48px', display: 'flex', flexDirection: 'column' },
-        submenuItem: { padding: '8px 0', cursor: 'pointer' },
-        userFooter: { padding: '12px', borderTop: '1px solid rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', gap: '10px' },
-        avatar: { width: '36px', height: '36px', borderRadius: '50%', background: '#0ea5a4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700' },
-        logoutMini: { marginLeft: 'auto', background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer' }
-    };
+    // Obtenemos los datos dinámicos de la empresa desde la BD mediante el contexto
+    const { company } = useCompany();
 
-    const getActiveClass = (path) => location.pathname === path ? 'active' : '';
+    // Auto-expandir el submenú padre si la ruta activa pertenece a un ítem hijo
+    useEffect(() => {
+        MODULE_GROUPS.forEach((group) => {
+            group.items.forEach((item) => {
+                if (item.submenu) {
+                    const isChildActive = item.submenu.some((sub) => sub.path === location.pathname);
+                    if (isChildActive) {
+                        setOpenSubmenus((prev) => ({ ...prev, [item.id]: true }));
+                    }
+                }
+            });
+        });
+    }, [location.pathname]);
 
-    const toggleModule = (moduleName) => {
-        setExpandedModule(expandedModule === moduleName ? null : moduleName);
-    };
-
-    const modules = [
-        {
-            id: 'dashboard',
-            label: 'Dashboard',
-            icon: 'chart',
-            path: '/dashboard',
-            submenu: null
-        },
-        {
-            id: 'empleados',
-            label: 'Empleados',
-            icon: 'users',
-            submenu: [
-                { label: 'Lista de Empleados', path: '/personal' },
-                { label: 'Asistencia', path: '/captura-diaria' },
-                { label: 'Nómina', path: '/nomina' }
-            ]
-        },
-        {
-            id: 'procesos',
-            label: 'departamentos',
-            icon: 'briefcase',
-            submenu: [
-                { label: 'Registros de Actividad', path: '/verRegistro' },
-                { label: 'Captura Diaria', path: '/captura-diaria' },
-                { label: 'Calidad', path: '/calidad' },
-                { label: 'Producción', path: '/produccion' },
-                { label: 'Recepción', path: '/recepcion' }
-            ]
-        },
-        {
-            id: 'reportes',
-            label: 'Facturación',
-            icon: 'checklist',
-            path: '/reportes',
-            submenu: [
-                { label: 'Proveedores', path: '/facProv' },
-                { label: 'Clientes', path: '/facCli' },
-                { label: 'Facturas', path: '#' }
-            ]
-        },
-        {
-            id: 'inventario',
-            label: 'Inventarios',
-            icon: 'box',
-            path: '/productos',
-            submenu: [
-                { label: 'Inventario Fruta', path: '/productos' },
-                { label: 'Movimientos', path: '/entradas' },
-                { label: 'Traspasos', path: '/salidas' },
-            ],
-        },
-        {
-            id: 'general',
-            label: 'Catalogos',
-            icon: 'archive',
-            path: '/general',
-            submenu: [
-                { label: 'Emvases', path: '/catalogos' },
-                { label: 'Proveedores', path: '/proveedores' },
-                { label: 'Clientes', path: '/clientes' },
-                { label: 'Almacenes', path: '/almacen' },
-            ],
+    const toggleSubmenu = (id) => {
+        if (collapsed) {
+            setCollapsed(false);
+            setOpenSubmenus((prev) => ({ ...prev, [id]: true }));
+            return;
         }
-    ];
+        setOpenSubmenus((prev) => ({
+            ...prev,
+            [id]: !prev[id]
+        }));
+    };
+
+    const isSubmenuActive = (submenu) => {
+        return submenu?.some((sub) => location.pathname === sub.path);
+    };
+
+    const getUserInitials = (name) => {
+        if (!name) return 'OP';
+        const parts = name.trim().split(' ');
+        if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+        return parts[0].slice(0, 2).toUpperCase();
+    };
 
     return (
-        <aside className={`pro-sidebar ${collapsed ? 'collapsed' : ''}`}>
-            <div className="pro-logo">
-                <div className="logo-symbol">C</div>
-                {!collapsed && <span className="logo-text">CONGELO<b>PAY</b></span>}
+        <aside
+            className={`sap-sidebar ${collapsed ? 'collapsed' : ''}`}
+            aria-label="Navegación principal ERP"
+            style={{
+                // Opcional: inyecta el color primario de la BD directamente como variable del Sidebar
+                '--sidebar-primary-color': company.color_primario || '#1B2A52'
+            }}
+        >
+            {/* CABECERA / BRANDING DINÁMICO */}
+            <div className="sap-sidebar-header">
+                <div className="sap-brand" title={company.nombre_comercial}>
+                    <div className="sap-brand-logo">
+                        {company.logo ? (
+                            <img src={company.logo} alt="Logo Empresa" className="sap-logo-img" />
+                        ) : (
+                            <span>{company.nombre_comercial ? company.nombre_comercial[0] : 'S'}</span>
+                        )}
+                    </div>
+                    {!collapsed && (
+                        <div className="sap-brand-info">
+                            <span className="sap-brand-name">{company.nombre_comercial}</span>
+                            <span className="sap-brand-system">{company.subtitulo || 'ENTERPRISE ERP'}</span>
+                        </div>
+                    )}
+                </div>
+                <button
+                    type="button"
+                    className="sap-toggle-btn"
+                    onClick={() => setCollapsed(!collapsed)}
+                    title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+                    aria-label="Alternar menú"
+                >
+                    {collapsed ? ICONS.expand : ICONS.collapse}
+                </button>
             </div>
 
-            <nav className="pro-menu">
-                {modules.map((module) => (
-                    <div key={module.id}>
-                        <div
-                            className={`menu-item ${getActiveClass(module.path)} ${expandedModule === module.id ? 'expanded' : ''}`}
-                            onClick={() => {
-                                if (module.submenu) {
-                                    toggleModule(module.id);
-                                } else {
-                                    navigate(module.path);
-                                }
-                            }}
-                        >
-                            <Icon name={module.icon} />
-                            <span className="menu-label">{module.label}</span>
-                            {module.submenu && !collapsed && (
-                                <Icon name="chevron" className="chevron-icon" />
-                            )}
-                        </div>
-
-                        {module.submenu && expandedModule === module.id && !collapsed && (
-                            <div className="submenu">
-                                {module.submenu.map((item, idx) => (
-                                    <div
-                                        key={idx}
-                                        className={`submenu-item ${getActiveClass(item.path)}`}
-                                        onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (item.path && item.path !== '#') {
-                                                    navigate(item.path);
-                                                    setExpandedModule(null);
-                                                }
-                                            }}
-                                    >
-                                        <span className="submenu-label">{item.label}</span>
-                                    </div>
-                                ))}
-                            </div>
+            {/* ÁREA DE NAVEGACIÓN */}
+            <nav className="sap-sidebar-nav">
+                {MODULE_GROUPS.map((group, gIdx) => (
+                    <div key={gIdx} className="sap-nav-group">
+                        {!collapsed && (
+                            <div className="sap-group-title">{group.category}</div>
                         )}
+                        {group.items.map((item) => {
+                            const hasSubmenu = Boolean(item.submenu);
+                            const isOpen = Boolean(openSubmenus[item.id]);
+                            const childActive = hasSubmenu && isSubmenuActive(item.submenu);
+
+                            if (hasSubmenu) {
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className={`sap-menu-accordion ${isOpen ? 'is-open' : ''} ${childActive ? 'has-active-child' : ''
+                                            }`}
+                                    >
+                                        <button
+                                            type="button"
+                                            className={`sap-menu-item accordion-trigger ${childActive ? 'active-parent' : ''
+                                                }`}
+                                            onClick={() => toggleSubmenu(item.id)}
+                                            title={collapsed ? item.label : undefined}
+                                        >
+                                            <span className="sap-icon-wrapper">{ICONS[item.icon]}</span>
+                                            {!collapsed && (
+                                                <>
+                                                    <span className="sap-menu-label">{item.label}</span>
+                                                    <span className="sap-chevron">{ICONS.chevron}</span>
+                                                </>
+                                            )}
+                                        </button>
+
+                                        {!collapsed && isOpen && (
+                                            <div className="sap-submenu">
+                                                {item.submenu.map((sub) => (
+                                                    <NavLink
+                                                        key={sub.path}
+                                                        to={sub.path}
+                                                        className={({ isActive }) =>
+                                                            `sap-submenu-item ${isActive ? 'active' : ''}`
+                                                        }
+                                                    >
+                                                        <span className="sap-sub-icon">{ICONS.dot}</span>
+                                                        <span className="sap-submenu-label">{sub.label}</span>
+                                                    </NavLink>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <NavLink
+                                    key={item.id}
+                                    to={item.path}
+                                    className={({ isActive }) =>
+                                        `sap-menu-item ${isActive ? 'active' : ''}`
+                                    }
+                                    title={collapsed ? item.label : undefined}
+                                >
+                                    <span className="sap-icon-wrapper">{ICONS[item.icon]}</span>
+                                    {!collapsed && (
+                                        <span className="sap-menu-label">{item.label}</span>
+                                    )}
+                                </NavLink>
+                            );
+                        })}
                     </div>
                 ))}
             </nav>
 
-            <div className="pro-user-footer">
-                <div className="u-avatar">A</div>
-                {!collapsed && (
-                    <>
-                        <div className="u-info">
-                            <p className="u-name">Administrador</p>
-                            <p className="u-status">En Línea</p>
+            {/* PIE DE PÁGINA / USUARIO */}
+            <div className="sap-sidebar-footer">
+                <div
+                    className="sap-user-card"
+                    title={collapsed ? user?.nombre || 'Edgar Barajas' : undefined}
+                >
+                    <div className="sap-avatar">
+                        {getUserInitials(user?.nombre || 'Edgar Barajas')}
+                    </div>
+                    {!collapsed && (
+                        <div className="sap-user-details">
+                            <span className="sap-user-name">
+                                {user?.nombre || 'Edgar Barajas'}
+                            </span>
+                            <span className="sap-user-role">
+                                {user?.puesto || 'Analista de Manufactura'}
+                            </span>
                         </div>
-                        <button className="logout-mini" onClick={handleLogout} title="Cerrar Sesión">⎋</button>
-                    </>
-                )}
+                    )}
+                </div>
+
+                <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="sap-logout-btn"
+                    title={collapsed ? 'Cerrar sesión' : undefined}
+                >
+                    <span className="sap-icon-wrapper">{ICONS.logout}</span>
+                    {!collapsed && <span>Cerrar Sesión</span>}
+                </button>
             </div>
         </aside>
     );
 };
-
-export { Sidebar, Icon };
