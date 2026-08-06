@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useId } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { useCompany } from '../Context/CompanyContext'; // Importamos el contexto de la empresa
+import { useCompany } from '../Context/CompanyContext';
 import './Sidebar.css';
 
-// Iconos SVG Vectoriales de Trazo Delgado (Estilo SAP Fiori / Lucide)
-const ICONS = {
+/* =========================================================================
+ * ICONOS — trazo delgado estilo SAP Fiori / Lucide
+ * Se definen fuera del componente para que NUNCA se recreen entre renders.
+ * ===================================================================== */
+const ICONS = Object.freeze({
     dashboard: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="7" height="9" rx="1" />
@@ -64,15 +67,30 @@ const ICONS = {
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 .94l-.27.54a2 2 0 1 1-3.64-2l.27-.54a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-.94l.27-.54a2 2 0 1 1 3.64 2l-.27.54a1.65 1.65 0 0 0 .33 1.82z" />
         </svg>
-    )
-};
+    ),
+    calidad: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z" />
+        </svg>
+    ),
+    catalogos: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+    ),
+});
 
-const MODULE_GROUPS = [
+/* =========================================================================
+ * CONFIGURACIÓN DE MÓDULOS — estática, fuera del componente.
+ * `permission` es opcional: si el sidebar recibe la prop `permissions`
+ * (array/Set de ids), solo se muestran los ítems permitidos.
+ * ===================================================================== */
+const MODULE_GROUPS = Object.freeze([
     {
         category: 'PRINCIPAL',
         items: [
-            { id: 'dashboard', label: 'Panel Principal', icon: 'dashboard', path: '/dashboard' }
-        ]
+            { id: 'dashboard', label: 'Panel Principal', icon: 'dashboard', path: '/dashboard' },
+        ],
     },
     {
         category: 'GESTIÓN OPERATIVA',
@@ -82,10 +100,9 @@ const MODULE_GROUPS = [
                 label: 'Inventarios y Almacén',
                 icon: 'inventario',
                 submenu: [
-                    { label: 'Catálogo de Productos', path: '/productos' },
-                    { label: 'Entradas y Salidas', path: '/movimientos' },
-                    { label: 'Ajustes de Inventario', path: '/ajustes' }
-                ]
+                    { label: 'Movimientos', path: '/almacen' },
+                    { label: 'Ajustes de Inventario', path: '/ajustes' },
+                ],
             },
             {
                 id: 'personal',
@@ -93,100 +110,250 @@ const MODULE_GROUPS = [
                 icon: 'personal',
                 submenu: [
                     { label: 'Directorio de Personal', path: '/personal' },
-                    { label: 'Control de Asistencia', path: '/asistencia' }
-                ]
-            }
-        ]
+                    { label: 'Control de Asistencia', path: '/asistencia' },
+                ],
+            },
+            {
+                id: 'calidad',
+                label: 'Calidad e Inocuidad',
+                icon: 'calidad',
+                submenu: [
+                    { label: 'Directorio de Personal', path: '/personal' },
+                    { label: 'Control de Asistencia', path: '/asistencia' },
+                ],
+            },
+            
+        ],
     },
     {
-        category: 'SETTINGS',
+        category: 'CONFIGURACIÓN',
         items: [
-            { id: 'sett', label: 'Panel de Configuración', icon: 'sett', path: '/configuracion' }
-        ]
-    }
-];
+            { id: 'sett', label: 'Panel de Configuración', icon: 'sett', path: '/configuracion' },
+            {
+                id: 'catalogos',
+                label: 'Catálogos Maestros',
+                icon: 'catalogos',
+                submenu: [
+                    { label: 'Catálogo de Productos', path: '/productos' },
+                    { label: 'Catálogo de Categorías', path: '/categorias' },
+                    { label: 'Unidades de Medida', path: '/unidades' },
+                    { label: 'Catálogo de Empaques', path: '/empaques' },
+                    { label: 'Catálogo de Almacenes', path: '/almacenes' },
+                    { label: 'Catálogo de Ubicaciones', path: '/ubicaciones' },
 
-export const Sidebar = ({
+                ],
+            },
+        ],
+    },
+]);
+
+const STORAGE_KEY = 'sap:sidebar:collapsed';
+
+const getUserInitials = (name) => {
+    if (!name) return 'OP';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    return parts[0].slice(0, 2).toUpperCase();
+};
+
+/* =========================================================================
+ * SUBCOMPONENTES MEMOIZADOS
+ * Aislar cada ítem evita que TODO el menú se vuelva a renderizar cuando
+ * solo cambia el estado de un acordeón o el hover de otro elemento.
+ * ===================================================================== */
+
+const MenuLink = React.memo(function MenuLink({ item, collapsed }) {
+    return (
+        <NavLink
+            to={item.path}
+            className={({ isActive }) => `sap-menu-item ${isActive ? 'active' : ''}`}
+            title={collapsed ? item.label : undefined}
+        >
+            <span className="sap-icon-wrapper">{ICONS[item.icon]}</span>
+            {!collapsed && <span className="sap-menu-label">{item.label}</span>}
+        </NavLink>
+    );
+});
+
+const MenuAccordion = React.memo(function MenuAccordion({
+    item,
+    collapsed,
+    isOpen,
+    isChildActive,
+    onToggle,
+    currentPath,
+}) {
+    const panelId = useId();
+
+    return (
+        <div className={`sap-menu-accordion ${isOpen ? 'is-open' : ''} ${isChildActive ? 'has-active-child' : ''}`}>
+            <button
+                type="button"
+                className={`sap-menu-item accordion-trigger ${isChildActive ? 'active-parent' : ''}`}
+                onClick={() => onToggle(item.id)}
+                title={collapsed ? item.label : undefined}
+                aria-expanded={!collapsed && isOpen}
+                aria-controls={panelId}
+            >
+                <span className="sap-icon-wrapper">{ICONS[item.icon]}</span>
+                {!collapsed && (
+                    <>
+                        <span className="sap-menu-label">{item.label}</span>
+                        <span className="sap-chevron">{ICONS.chevron}</span>
+                    </>
+                )}
+            </button>
+
+            {!collapsed && isOpen && (
+                <div className="sap-submenu" id={panelId} role="group">
+                    {item.submenu.map((sub) => (
+                        <NavLink
+                            key={sub.path}
+                            to={sub.path}
+                            className={() => `sap-submenu-item ${currentPath === sub.path ? 'active' : ''}`}
+                        >
+                            <span className="sap-sub-icon">{ICONS.dot}</span>
+                            <span className="sap-submenu-label">{sub.label}</span>
+                        </NavLink>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+});
+
+/* =========================================================================
+ * COMPONENTE PRINCIPAL
+ * ===================================================================== */
+const SidebarComponent = ({
     user,
     handleLogout,
-    collapsed = false,
-    setCollapsed = () => { }
+    collapsed: collapsedProp,
+    setCollapsed: setCollapsedProp,
+    permissions, // opcional: array/Set de ids visibles. undefined = mostrar todo.
 }) => {
-    const [openSubmenus, setOpenSubmenus] = useState({ inventario: true });
     const location = useLocation();
-
-    // Obtenemos los datos dinámicos de la empresa desde la BD mediante el contexto
     const { company } = useCompany();
 
-    // Auto-expandir el submenú padre si la ruta activa pertenece a un ítem hijo
-    useEffect(() => {
-        MODULE_GROUPS.forEach((group) => {
-            group.items.forEach((item) => {
-                if (item.submenu) {
-                    const isChildActive = item.submenu.some((sub) => sub.path === location.pathname);
-                    if (isChildActive) {
-                        setOpenSubmenus((prev) => ({ ...prev, [item.id]: true }));
-                    }
-                }
-            });
-        });
-    }, [location.pathname]);
+    // ---- Estado colapsado: controlado (props) o autónomo (localStorage) ----
+    const isControlled = collapsedProp !== undefined && typeof setCollapsedProp === 'function';
 
-    const toggleSubmenu = (id) => {
-        if (collapsed) {
-            setCollapsed(false);
-            setOpenSubmenus((prev) => ({ ...prev, [id]: true }));
-            return;
+    const [internalCollapsed, setInternalCollapsed] = useState(() => {
+        if (isControlled) return collapsedProp;
+        try {
+            const stored = window.localStorage.getItem(STORAGE_KEY);
+            return stored ? JSON.parse(stored) : false;
+        } catch {
+            return false;
         }
-        setOpenSubmenus((prev) => ({
-            ...prev,
-            [id]: !prev[id]
-        }));
-    };
+    });
 
-    const isSubmenuActive = (submenu) => {
-        return submenu?.some((sub) => location.pathname === sub.path);
-    };
+    const collapsed = isControlled ? collapsedProp : internalCollapsed;
 
-    const getUserInitials = (name) => {
-        if (!name) return 'OP';
-        const parts = name.trim().split(' ');
-        if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-        return parts[0].slice(0, 2).toUpperCase();
-    };
+    const setCollapsed = useCallback(
+        (value) => {
+            const next = typeof value === 'function' ? value(collapsed) : value;
+            if (isControlled) {
+                setCollapsedProp(next);
+            } else {
+                setInternalCollapsed(next);
+                try {
+                    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+                } catch {
+                    /* localStorage no disponible: se ignora silenciosamente */
+                }
+            }
+        },
+        [collapsed, isControlled, setCollapsedProp]
+    );
+
+    // ---- Módulos visibles según permisos (memoizado) ----
+    const visibleGroups = useMemo(() => {
+        if (!permissions) return MODULE_GROUPS;
+        const allowed = permissions instanceof Set ? permissions : new Set(permissions);
+        return MODULE_GROUPS.map((group) => ({
+            ...group,
+            items: group.items.filter((item) => allowed.has(item.id)),
+        })).filter((group) => group.items.length > 0);
+    }, [permissions]);
+
+    // ---- Submenú activo según ruta actual ----
+    const activeParentId = useMemo(() => {
+        for (const group of visibleGroups) {
+            for (const item of group.items) {
+                if (item.submenu?.some((sub) => sub.path === location.pathname)) {
+                    return item.id;
+                }
+            }
+        }
+        return null;
+    }, [visibleGroups, location.pathname]);
+
+    const [openSubmenus, setOpenSubmenus] = useState({ inventario: true });
+
+    // Se abre automáticamente el acordeón padre de la ruta activa (una sola escritura de estado)
+    useEffect(() => {
+        if (activeParentId) {
+            setOpenSubmenus((prev) => (prev[activeParentId] ? prev : { ...prev, [activeParentId]: true }));
+        }
+    }, [activeParentId]);
+
+    const toggleSubmenu = useCallback(
+        (id) => {
+            if (collapsed) {
+                setCollapsed(false);
+                setOpenSubmenus((prev) => ({ ...prev, [id]: true }));
+                return;
+            }
+            setOpenSubmenus((prev) => ({ ...prev, [id]: !prev[id] }));
+        },
+        [collapsed, setCollapsed]
+    );
+
+    const isSubmenuActive = useCallback(
+        (submenu) => submenu?.some((sub) => location.pathname === sub.path),
+        [location.pathname]
+    );
+
+    const sidebarStyle = useMemo(
+        () => ({ '--sidebar-primary-color': company?.color_primario || '#1B2A52' }),
+        [company?.color_primario]
+    );
+
+    const displayName = user?.nombre || company?.usuario_defecto || 'Edgar Barajas';
+    const displayRole = user?.puesto || 'Analista de Manufactura';
+    const companyLabel = company?.nombre_comercial || 'Sistema ERP';
 
     return (
         <aside
             className={`sap-sidebar ${collapsed ? 'collapsed' : ''}`}
             aria-label="Navegación principal ERP"
-            style={{
-                // Opcional: inyecta el color primario de la BD directamente como variable del Sidebar
-                '--sidebar-primary-color': company.color_primario || '#1B2A52'
-            }}
+            style={sidebarStyle}
         >
             {/* CABECERA / BRANDING DINÁMICO */}
             <div className="sap-sidebar-header">
-                <div className="sap-brand" title={company.nombre_comercial}>
+                <div className="sap-brand" title={companyLabel}>
                     <div className="sap-brand-logo">
-                        {company.logo ? (
-                            <img src={company.logo} alt="Logo Empresa" className="sap-logo-img" />
+                        {company?.logo ? (
+                            <img src={company.logo} alt={`Logo de ${companyLabel}`} className="sap-logo-img" />
                         ) : (
-                            <span>{company.nombre_comercial ? company.nombre_comercial[0] : 'S'}</span>
+                            <span>{companyLabel ? companyLabel[0] : 'S'}</span>
                         )}
                     </div>
                     {!collapsed && (
                         <div className="sap-brand-info">
-                            <span className="sap-brand-name">{company.nombre_comercial}</span>
-                            <span className="sap-brand-system">{company.subtitulo || 'ENTERPRISE ERP'}</span>
+                            <span className="sap-brand-name">{companyLabel}</span>
+                            <span className="sap-brand-system">{company?.subtitulo || 'ENTERPRISE ERP'}</span>
                         </div>
                     )}
                 </div>
                 <button
                     type="button"
                     className="sap-toggle-btn"
-                    onClick={() => setCollapsed(!collapsed)}
+                    onClick={() => setCollapsed((prev) => !prev)}
                     title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-                    aria-label="Alternar menú"
+                    aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+                    aria-pressed={collapsed}
                 >
                     {collapsed ? ICONS.expand : ICONS.collapse}
                 </button>
@@ -194,96 +361,36 @@ export const Sidebar = ({
 
             {/* ÁREA DE NAVEGACIÓN */}
             <nav className="sap-sidebar-nav">
-                {MODULE_GROUPS.map((group, gIdx) => (
-                    <div key={gIdx} className="sap-nav-group">
-                        {!collapsed && (
-                            <div className="sap-group-title">{group.category}</div>
-                        )}
-                        {group.items.map((item) => {
-                            const hasSubmenu = Boolean(item.submenu);
-                            const isOpen = Boolean(openSubmenus[item.id]);
-                            const childActive = hasSubmenu && isSubmenuActive(item.submenu);
-
-                            if (hasSubmenu) {
-                                return (
-                                    <div
-                                        key={item.id}
-                                        className={`sap-menu-accordion ${isOpen ? 'is-open' : ''} ${childActive ? 'has-active-child' : ''
-                                            }`}
-                                    >
-                                        <button
-                                            type="button"
-                                            className={`sap-menu-item accordion-trigger ${childActive ? 'active-parent' : ''
-                                                }`}
-                                            onClick={() => toggleSubmenu(item.id)}
-                                            title={collapsed ? item.label : undefined}
-                                        >
-                                            <span className="sap-icon-wrapper">{ICONS[item.icon]}</span>
-                                            {!collapsed && (
-                                                <>
-                                                    <span className="sap-menu-label">{item.label}</span>
-                                                    <span className="sap-chevron">{ICONS.chevron}</span>
-                                                </>
-                                            )}
-                                        </button>
-
-                                        {!collapsed && isOpen && (
-                                            <div className="sap-submenu">
-                                                {item.submenu.map((sub) => (
-                                                    <NavLink
-                                                        key={sub.path}
-                                                        to={sub.path}
-                                                        className={({ isActive }) =>
-                                                            `sap-submenu-item ${isActive ? 'active' : ''}`
-                                                        }
-                                                    >
-                                                        <span className="sap-sub-icon">{ICONS.dot}</span>
-                                                        <span className="sap-submenu-label">{sub.label}</span>
-                                                    </NavLink>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            }
-
-                            return (
-                                <NavLink
+                {visibleGroups.map((group) => (
+                    <div key={group.category} className="sap-nav-group">
+                        {!collapsed && <div className="sap-group-title">{group.category}</div>}
+                        {group.items.map((item) =>
+                            item.submenu ? (
+                                <MenuAccordion
                                     key={item.id}
-                                    to={item.path}
-                                    className={({ isActive }) =>
-                                        `sap-menu-item ${isActive ? 'active' : ''}`
-                                    }
-                                    title={collapsed ? item.label : undefined}
-                                >
-                                    <span className="sap-icon-wrapper">{ICONS[item.icon]}</span>
-                                    {!collapsed && (
-                                        <span className="sap-menu-label">{item.label}</span>
-                                    )}
-                                </NavLink>
-                            );
-                        })}
+                                    item={item}
+                                    collapsed={collapsed}
+                                    isOpen={Boolean(openSubmenus[item.id])}
+                                    isChildActive={isSubmenuActive(item.submenu)}
+                                    onToggle={toggleSubmenu}
+                                    currentPath={location.pathname}
+                                />
+                            ) : (
+                                <MenuLink key={item.id} item={item} collapsed={collapsed} />
+                            )
+                        )}
                     </div>
                 ))}
             </nav>
 
             {/* PIE DE PÁGINA / USUARIO */}
             <div className="sap-sidebar-footer">
-                <div
-                    className="sap-user-card"
-                    title={collapsed ? user?.nombre || 'Edgar Barajas' : undefined}
-                >
-                    <div className="sap-avatar">
-                        {getUserInitials(user?.nombre || 'Edgar Barajas')}
-                    </div>
+                <div className="sap-user-card" title={collapsed ? displayName : undefined}>
+                    <div className="sap-avatar">{getUserInitials(displayName)}</div>
                     {!collapsed && (
                         <div className="sap-user-details">
-                            <span className="sap-user-name">
-                                {user?.nombre || 'Edgar Barajas'}
-                            </span>
-                            <span className="sap-user-role">
-                                {user?.puesto || 'Analista de Manufactura'}
-                            </span>
+                            <span className="sap-user-name">{displayName}</span>
+                            <span className="sap-user-role">{displayRole}</span>
                         </div>
                     )}
                 </div>
@@ -301,3 +408,5 @@ export const Sidebar = ({
         </aside>
     );
 };
+
+export const Sidebar = React.memo(SidebarComponent);

@@ -425,6 +425,25 @@
 .sap-logo-img {
     width: 100%;
     height: 100%;
-    object-fit: contain; /* Esto evita que la imagen se estire o deforme */
+    object-fit: contain;
     display: block;
+}
+
+/* =========================================================================
+ * ACCESIBILIDAD — estados de foco visibles (teclado) sin alterar el
+ * estilo visual normal (hover/click con mouse no muestra el anillo).
+ * ===================================================================== */
+.sap-menu-item:focus-visible,
+.sap-toggle-btn:focus-visible,
+.sap-logout-btn:focus-visible,
+.sap-submenu-item:focus-visible {
+  outline: 2px solid var(--sap-accent-blue);
+  outline-offset: 2px;
+}
+
+/* Transición suave del contenido al expandir/colapsar */
+.sap-brand-info,
+.sap-menu-label,
+.sap-user-details {
+  transition: opacity 0.15s ease;
 }

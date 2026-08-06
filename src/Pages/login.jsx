@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './login.css';
 import { ENDPOINTS } from '../api';
+import { useCompany } from '../Context/CompanyContext';
 
 export default function Login({ onLogin }) {
     const [username, setUsername] = useState('');
@@ -10,61 +11,67 @@ export default function Login({ onLogin }) {
     const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
+    // Consumimos el contexto de empresa si está disponible para variables de tema/colores
+    const companyContext = useCompany?.();
+    const company = companyContext?.company || {
+        nombre_comercial: 'Sano y Nutritivo Zamora',
+        color_primario: '#1B2A52',
+        color_secundario: '#2E7D32'
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
 
-        // Limpia solo espacios al inicio/final, NO alteres las mayúsculas
         const exactUsername = username.trim();
-
-        // AGREGA ESTA LÍNEA DE PRUEBA:
-        console.log("Intentando conectar a:", ENDPOINTS.login);
-
 
         try {
             const response = await fetch(ENDPOINTS.login, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    username: exactUsername, // <--- Enviado tal cual
+                    username: exactUsername,
                     password: password
                 }),
             });
             const data = await response.json();
 
             if (response.ok) {
-                // 2. Guardar AMBOS tokens para el ciclo de vida de JWT
+                // Guardar tokens JWT en almacenamiento local
                 localStorage.setItem('token', data.access);
                 localStorage.setItem('refresh_token', data.refresh);
 
-                // 3. Pasar los datos del usuario (como el rol) al estado global si es necesario
                 if (onLogin) {
                     onLogin(data.user);
                 }
 
                 navigate('/dashboard');
             } else {
-                // 4. Mapear correctamente el error enviado desde tu API de Django
-                const mensajeError = data.error || data.detail || "Usuario o contraseña incorrectos.";
+                const mensajeError = data.error || data.detail || 'Usuario o contraseña incorrectos.';
                 setError(mensajeError);
             }
         } catch (err) {
-            setError("Error de conexión con el servidor. Verifica tu red.");
+            setError('Error de conexión con el servidor. Verifica tu red o la API.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="login-container">
+        <div 
+            className="login-container"
+            style={{
+                '--primary-theme': company.color_primario || '#1B2A52',
+                '--secondary-theme': company.color_secundario || '#2E7D32'
+            }}
+        >
             <div className="login-overlay"></div>
             <div className="login-box">
                 <div className="login-header">
                     <div className="logo-placeholder">❄️</div>
-                    <h1>Congeladora SNZ</h1>
-                    <p>Gestión de Nóminas para Personal de Congeladora</p>
+                    <h1>{company.nombre_comercial || 'Sano y Nutritivo Zamora'}</h1>
+                    <p>Sistema Integral de Control Operativo y Almacenamiento</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="login-form">
@@ -106,8 +113,9 @@ export default function Login({ onLogin }) {
                         {loading ? <span className="loader"></span> : 'Iniciar Sesión'}
                     </button>
                 </form>
+
                 <footer className="login-footer">
-                    &copy; {new Date().getFullYear()} Software de Nóminas Congeladora
+                    &copy; {new Date().getFullYear()} {company.nombre_comercial || 'Sano y Nutritivo Zamora'}. Todos los derechos reservados.
                 </footer>
             </div>
         </div>

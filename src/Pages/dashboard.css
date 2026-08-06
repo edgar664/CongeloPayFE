@@ -468,3 +468,64 @@ body {
         transform: rotate(360deg);
     }
 }
+/* Adaptación cromática dinámica con respaldo a tonos industriales SAP Fiori */
+.pro-dashboard {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: #f4f6f9;
+  font-family: '72', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.pro-top-nav {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 1rem 1.5rem;
+}
+
+.page-title h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--primary-theme, #1b2a52);
+  margin: 0;
+}
+
+.page-title p {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 0.25rem;
+}
+
+.p-card {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 1.25rem;
+  border-left: 4px solid var(--primary-theme, #1b2a52);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+  font-weight: 600;
+  color: var(--primary-theme, #1b2a52);
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.st-badge.active {
+  background-color: #e8f5e9;
+  color: var(--secondary-theme, #2e7d32);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.st-badge.warning {
+  background-color: #fff8e1;
+  color: #b78103;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
