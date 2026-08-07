@@ -13,21 +13,20 @@ import {
     Typography,
     Box,
     Paper,
-    IconButton,
-    InputAdornment
+    IconButton
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ScaleIcon from '@mui/icons-material/Scale';
 import { ENDPOINTS } from '../api';
 
-// Tipos de movimiento alineados con TipoMovimiento (TextChoices de Django)
 const TIPOS_MOVIMIENTO = [
-    { value: 'ENTRADA_RECEPCION', label: 'Entrada por Recepción de Fruta' },
-    { value: 'ENTRADA_PRODUCCION', label: 'Entrada de Producto Terminado IQF' },
-    { value: 'SALIDA_PRODUCCION', label: 'Salida a Proceso / Descongelado' },
-    { value: 'SALIDA_EMBARQUE', label: 'Salida por Venta / Embarque' },
-    { value: 'TRASPASO', label: 'Reubicación / Traspaso entre Cámaras' },
-    { value: 'AJUSTE_MERMA', label: 'Ajuste por Merma / Desecho' }
+    { value: 'TODOS', label: 'Todos los Tipos' },
+    { value: 'ENTRADA_RECEPCION', label: 'Entrada por Recepción' },
+    { value: 'ENTRADA_PRODUCCION', label: 'Entrada Producto IQF' },
+    { value: 'SALIDA_PRODUCCION', label: 'Salida a Proceso' },
+    { value: 'SALIDA_EMBARQUE', label: 'Salida por Embarque' },
+    { value: 'TRASPASO', label: 'Traspaso / Reubicación' },
+    { value: 'AJUSTE_MERMA', label: 'Ajuste por Merma' }
 ];
 
 const INITIAL_FORM_STATE = {
@@ -38,9 +37,9 @@ const INITIAL_FORM_STATE = {
     empaque_tarima: '',
     empaque_caja: '',
     empaque_bolsa: '',
-    cantidad_cajas: 0,
+    unidades: 0,
     peso_bruto_kg: '',
-    observaciones: ''
+    observaciones: '',
 };
 
 export default function RecepcionBascula({ open, onClose, onSuccess }) {
@@ -60,15 +59,14 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
         onClose();
     }, [loadingSubmit, onClose]);
 
-    // Cargar catálogos dinámicos
     useEffect(() => {
         if (!open) return;
 
         const controller = new AbortController();
         const token = localStorage.getItem('token');
-        const headers = { 
+        const headers = {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json' 
+            'Content-Type': 'application/json'
         };
 
         const fetchCatalogos = async () => {
@@ -83,7 +81,7 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
                 ]);
 
                 if (!resLotes.ok || !resUbic.ok || !resEmp.ok) {
-                    throw new Error('Error al cargar alguno de los catálogos.');
+                    throw new Error('Error al cargar uno o varios catálogos del servidor.');
                 }
 
                 const [lotesData, ubicData, empData] = await Promise.all([
@@ -97,7 +95,7 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
                 setEmpaques(Array.isArray(empData) ? empData : empData.results || []);
             } catch (err) {
                 if (err.name !== 'AbortError') {
-                    setMensaje({ type: 'error', text: err.message || 'Error al conectar con los catálogos.' });
+                    setMensaje({ type: 'error', text: err.message || 'Error al obtener catálogos.' });
                 }
             } finally {
                 setFetchingCatalogos(false);
@@ -114,42 +112,32 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
         setForm(prev => ({ ...prev, [name]: value }));
     };
 
-    // Cálculos dinámicos de tara y pesos netos
     const calculosDestare = useMemo(() => {
         const pesoBruto = parseFloat(form.peso_bruto_kg) || 0;
-        const cantCajas = parseInt(form.cantidad_cajas, 10) || 0;
+        const cantUnidades = parseInt(form.unidades, 10) || 0;
 
         const tarimaSeleccionada = empaques.find(e => String(e.id) === String(form.empaque_tarima));
         const cajaSeleccionada = empaques.find(e => String(e.id) === String(form.empaque_caja));
         const bolsaSeleccionada = empaques.find(e => String(e.id) === String(form.empaque_bolsa));
 
-        const taraTarima = tarimaSeleccionada ? (parseFloat(tarimaSeleccionada.peso_tara_kg || tarimaSeleccionada.tara_kg) || 0) : 0;
-        const taraCajaUnitaria = cajaSeleccionada ? (parseFloat(cajaSeleccionada.peso_tara_kg || cajaSeleccionada.tara_kg) || 0) : 0;
-        const taraBolsaUnitaria = bolsaSeleccionada ? (parseFloat(bolsaSeleccionada.peso_tara_kg || bolsaSeleccionada.tara_kg) || 0) : 0;
-        
-        const taraTotalCajas = taraCajaUnitaria * cantCajas;
-        const taraTotalBolsas = taraBolsaUnitaria * cantCajas;
-        
+        const taraTarima = tarimaSeleccionada ? parseFloat(tarimaSeleccionada.peso_tara_kg || tarimaSeleccionada.tara_kg || 0) : 0;
+        const taraCajaUnitaria = cajaSeleccionada ? parseFloat(cajaSeleccionada.peso_tara_kg || cajaSeleccionada.tara_kg || 0) : 0;
+        const taraBolsaUnitaria = bolsaSeleccionada ? parseFloat(bolsaSeleccionada.peso_tara_kg || bolsaSeleccionada.tara_kg || 0) : 0;
+
+        const taraTotalCajas = taraCajaUnitaria * cantUnidades;
+        const taraTotalBolsas = taraBolsaUnitaria * cantUnidades;
+
         const taraTotal = taraTarima + taraTotalCajas + taraTotalBolsas;
         const pesoNetoKg = Math.max(0, pesoBruto - taraTotal);
         const pesoNetoLbs = pesoNetoKg * 2.20462;
 
         return {
-            taraTarima,
             taraTotal,
             pesoNetoKg,
             pesoNetoLbs
         };
-    }, [
-        form.peso_bruto_kg, 
-        form.cantidad_cajas, 
-        form.empaque_tarima, 
-        form.empaque_caja, 
-        form.empaque_bolsa, 
-        empaques
-    ]);
+    }, [form.peso_bruto_kg, form.unidades, form.empaque_tarima, form.empaque_caja, form.empaque_bolsa, empaques]);
 
-    // Envío del registro del movimiento de inventario
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -159,7 +147,7 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
         }
 
         if (parseFloat(form.peso_bruto_kg) <= 0) {
-            setMensaje({ type: 'warning', text: 'El peso bruto debe ser mayor a 0 kg.' });
+            setMensaje({ type: 'warning', text: 'El peso ingresado debe ser mayor a 0 kg.' });
             return;
         }
 
@@ -168,55 +156,67 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
 
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(ENDPOINTS.movimientosInventario || '/api/movimientos-inventario/', {
+            const isEntrada = form.tipo_movimiento === 'ENTRADA_RECEPCION';
+
+            const endpointTarget = isEntrada
+                ? (ENDPOINTS.registrarEntrada || '/api/registrar-entrada/')
+                : (ENDPOINTS.registrarTraspaso || '/api/registrar-traspaso/');
+
+            const cantUnidades = parseInt(form.unidades, 10) || 0;
+
+            const payload = isEntrada ? {
+                lote_id: parseInt(form.lote, 10),
+                ubicacion_destino_id: form.ubicacion_destino ? parseInt(form.ubicacion_destino, 10) : null,
+                peso_bruto_kg: parseFloat(form.peso_bruto_kg) || 0,
+                empaque_tarima_id: form.empaque_tarima ? parseInt(form.empaque_tarima, 10) : null,
+                empaque_caja_id: form.empaque_caja ? parseInt(form.empaque_caja, 10) : null,
+                empaque_bolsa_id: form.empaque_bolsa ? parseInt(form.empaque_bolsa, 10) : null,
+                unidades: cantUnidades,
+                num_cajas: cantUnidades, // Respaldo si la vista Django usa num_cajas
+                observaciones: form.observaciones || ''
+            } : {
+                lote_id: parseInt(form.lote, 10),
+                ubicacion_origen_id: parseInt(form.ubicacion_origen, 10),
+                ubicacion_destino_id: parseInt(form.ubicacion_destino, 10),
+                peso_a_mover_kg: parseFloat(form.peso_bruto_kg) || 0,
+                unidades: cantUnidades,
+                num_cajas: cantUnidades,
+                observaciones: form.observaciones || ''
+            };
+
+            const res = await fetch(endpointTarget, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({
-                    tipo_movimiento: form.tipo_movimiento,
-                    lote: form.lote,
-                    ubicacion_origen: form.ubicacion_origen || null,
-                    ubicacion_destino: form.ubicacion_destino || null,
-                    empaque_tarima: form.empaque_tarima || null,
-                    empaque_caja: form.empaque_caja || null,
-                    empaque_bolsa: form.empaque_bolsa || null,
-                    cantidad_cajas: parseInt(form.cantidad_cajas, 10) || 0,
-                    peso_bruto_kg: parseFloat(form.peso_bruto_kg).toFixed(3),
-                    tara_total_kg: calculosDestare.taraTotal.toFixed(3),
-                    peso_neto_kg: calculosDestare.pesoNetoKg.toFixed(3),
-                    peso_neto_lbs: calculosDestare.pesoNetoLbs.toFixed(3),
-                    observaciones: form.observaciones || ''
-                })
+                body: JSON.stringify(payload)
             });
 
             const data = await res.json();
 
-            if (res.ok || res.status === 201) {
-                setMensaje({ type: 'success', text: 'Movimiento de inventario registrado correctamente.' });
+            if (res.ok) {
+                setMensaje({ type: 'success', text: data.mensaje || 'Movimiento de inventario guardado correctamente.' });
                 setTimeout(() => {
                     handleClose();
                     if (onSuccess) onSuccess();
                 }, 800);
             } else {
-                const errDetail = data.detail || (typeof data === 'object' ? JSON.stringify(data) : 'Error al registrar la operación.');
-                setMensaje({ type: 'error', text: errDetail });
+                const errorText = data.error || data.detail || (typeof data === 'object' ? JSON.stringify(data) : 'Error al procesar la solicitud.');
+                setMensaje({ type: 'error', text: errorText });
             }
         } catch (err) {
-            setMensaje({ type: 'error', text: 'Error de red o conexión con el servidor.' });
+            setMensaje({ type: 'error', text: 'Error de red o pérdida de comunicación con el servidor.' });
         } finally {
             setLoadingSubmit(false);
         }
     };
 
     const esTraspaso = form.tipo_movimiento === 'TRASPASO';
-    const esSalida = form.tipo_movimiento.startsWith('SALIDA');
-    const esEntrada = form.tipo_movimiento.startsWith('ENTRADA');
 
     return (
-        <Dialog 
-            open={open} 
+        <Dialog
+            open={open}
             onClose={handleClose}
             maxWidth="md"
             fullWidth
@@ -226,15 +226,10 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <ScaleIcon color="primary" />
                     <Typography variant="h6" component="span" fontWeight="bold">
-                        Captura de Pesaje / Movimiento de Inventario
+                        Captura de Báscula / Movimiento Físico
                     </Typography>
                 </Box>
-                <IconButton
-                    aria-label="close"
-                    onClick={handleClose}
-                    disabled={loadingSubmit}
-                    sx={{ color: (theme) => theme.palette.grey[500] }}
-                >
+                <IconButton onClick={handleClose} disabled={loadingSubmit}>
                     <CloseIcon />
                 </IconButton>
             </DialogTitle>
@@ -250,18 +245,18 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
                     {fetchingCatalogos ? (
                         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 6, gap: 2 }}>
                             <CircularProgress size={30} />
-                            <Typography color="text.secondary">Cargando catálogos del sistema...</Typography>
+                            <Typography color="text.secondary">Cargando catálogos...</Typography>
                         </Box>
                     ) : (
                         <Grid container spacing={2.5}>
-                            {/* Tipo Movimiento y Lote */}
-                            <Grid item xs={12} sm={6}>
+                            {/* TIPO DE OPERACION */}
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <TextField
                                     select
                                     fullWidth
                                     required
                                     name="tipo_movimiento"
-                                    label="Tipo de Movimiento"
+                                    label="Tipo de Operación"
                                     value={form.tipo_movimiento}
                                     onChange={handleChange}
                                 >
@@ -273,177 +268,204 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
                                 </TextField>
                             </Grid>
 
-                            <Grid item xs={12} sm={6}>
+                            {/* SELECCIÓN DE LOTE */}
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <TextField
                                     select
                                     fullWidth
                                     required
                                     name="lote"
-                                    label="Lote"
+                                    label="Lote de Trazabilidad"
                                     value={form.lote}
                                     onChange={handleChange}
                                 >
-                                    <MenuItem value="" disabled><em>Seleccione un Lote</em></MenuItem>
+                                    <MenuItem value="" disabled><em>Seleccione Lote</em></MenuItem>
                                     {lotes.map(l => (
                                         <MenuItem key={l.id} value={l.id}>
-                                            {l.codigo_lote || l.lote_codigo} - {l.producto?.nombre || l.producto_nombre || 'Producto'}
+                                            {l.codigo_lote} - {l.producto?.nombre || 'Producto'}
                                         </MenuItem>
                                     ))}
                                 </TextField>
                             </Grid>
 
-                            {/* Origen y Destino */}
-                            <Grid item xs={12} sm={6}>
-                                <TextField
-                                    select
-                                    fullWidth
-                                    name="ubicacion_origen"
-                                    label="Ubicación Origen"
-                                    value={form.ubicacion_origen}
-                                    onChange={handleChange}
-                                    required={esTraspaso || esSalida}
-                                >
-                                    <MenuItem value=""><em>Origen Externo / Ninguno</em></MenuItem>
-                                    {ubicaciones.map(u => (
-                                        <MenuItem key={u.id} value={u.id} disabled={u.bloqueada}>
-                                            {u.nombre || u.codigo_ubicacion || u.codigo} {u.bloqueada ? '(BLOQUEADA)' : ''}
-                                        </MenuItem>
-                                    ))}
-                                </TextField>
-                            </Grid>
+                            {/* UBICACIÓN ORIGEN (SOLO TRASPASO) */}
+                            {esTraspaso && (
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <TextField
+                                        select
+                                        fullWidth
+                                        required
+                                        name="ubicacion_origen"
+                                        label="Ubicación Origen"
+                                        value={form.ubicacion_origen}
+                                        onChange={handleChange}
+                                    >
+                                        <MenuItem value="" disabled><em>Seleccione Origen</em></MenuItem>
+                                        {ubicaciones.map(u => (
+                                            <MenuItem key={u.id} value={u.id}>
+                                                {u.nombre_camara || u.codigo_ubicacion || u.codigo}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                            )}
 
-                            <Grid item xs={12} sm={6}>
+                            {/* UBICACIÓN DESTINO */}
+                            <Grid size={{ xs: 12, sm: esTraspaso ? 6 : 12 }}>
                                 <TextField
                                     select
                                     fullWidth
+                                    required
                                     name="ubicacion_destino"
                                     label="Ubicación Destino"
                                     value={form.ubicacion_destino}
                                     onChange={handleChange}
-                                    required={esTraspaso || esEntrada}
                                 >
-                                    <MenuItem value=""><em>Destino Externo / Ninguno</em></MenuItem>
+                                    <MenuItem value="" disabled><em>Seleccione Destino</em></MenuItem>
                                     {ubicaciones.map(u => (
-                                        <MenuItem key={u.id} value={u.id} disabled={u.bloqueada}>
-                                            {u.nombre || u.codigo_ubicacion || u.codigo} {u.bloqueada ? '(BLOQUEADA)' : ''}
+                                        <MenuItem key={u.id} value={u.id}>
+                                            {u.nombre_camara || u.codigo}
                                         </MenuItem>
                                     ))}
                                 </TextField>
                             </Grid>
 
-                            {/* Empaques */}
-                            <Grid item xs={12} sm={4}>
+                            {/* TARIMA */}
+                            {!esTraspaso && (
+                                <Grid size={{ xs: 12, sm: 4 }}>
+                                    <TextField
+                                        select
+                                        fullWidth
+                                        name="empaque_tarima"
+                                        label="Tarima / Pallet"
+                                        value={form.empaque_tarima}
+                                        onChange={handleChange}
+                                    >
+                                        <MenuItem value=""><em>-- Sin Tarima --</em></MenuItem>
+                                        {empaques.filter(e => e.tipo === 'TARIMA').map(e => (
+                                            <MenuItem key={e.id} value={e.id}>
+                                                {e.nombre} ({e.peso_tara_kg || e.tara_kg} kg)
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                            )}
+
+                            {/* CAJA */}
+                            {!esTraspaso && (
+                                <Grid size={{ xs: 12, sm: 4 }}>
+                                    <TextField
+                                        select
+                                        fullWidth
+                                        name="empaque_caja"
+                                        label="Tipo de Caja"
+                                        value={form.empaque_caja}
+                                        onChange={handleChange}
+                                    >
+                                        <MenuItem value=""><em>-- Sin Caja --</em></MenuItem>
+                                        {empaques.filter(e => e.tipo === 'CAJA').map(e => (
+                                            <MenuItem key={e.id} value={e.id}>
+                                                {e.nombre} ({e.peso_tara_kg || e.tara_kg} kg)
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                            )}
+
+                            {/* BOLSA */}
+                            {!esTraspaso && (
+                                <Grid size={{ xs: 12, sm: 4 }}>
+                                    <TextField
+                                        select
+                                        fullWidth
+                                        name="empaque_bolsa"
+                                        label="Tipo de Bolsa"
+                                        value={form.empaque_bolsa}
+                                        onChange={handleChange}
+                                    >
+                                        <MenuItem value=""><em>-- Sin Bolsa --</em></MenuItem>
+                                        {empaques.filter(e => e.tipo === 'BOLSA').map(e => (
+                                            <MenuItem key={e.id} value={e.id}>
+                                                {e.nombre} ({e.peso_tara_kg || e.tara_kg} kg)
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                </Grid>
+                            )}
+
+                            {/* UNIDADES / CAJAS */}
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <TextField
-                                    select
                                     fullWidth
-                                    name="empaque_tarima"
-                                    label="Tarima"
-                                    value={form.empaque_tarima}
-                                    onChange={handleChange}
-                                >
-                                    <MenuItem value=""><em>Sin Tarima</em></MenuItem>
-                                    {empaques.map(e => (
-                                        <MenuItem key={e.id} value={e.id}>
-                                            {e.nombre || e.tipo} ({parseFloat(e.peso_tara_kg || e.tara_kg || 0).toFixed(2)} kg)
-                                        </MenuItem>
-                                    ))}
-                                </TextField>
-                            </Grid>
-
-                            <Grid item xs={12} sm={4}>
-                                <TextField
-                                    select
-                                    fullWidth
-                                    name="empaque_caja"
-                                    label="Caja / Contenedor"
-                                    value={form.empaque_caja}
-                                    onChange={handleChange}
-                                >
-                                    <MenuItem value=""><em>Sin Caja</em></MenuItem>
-                                    {empaques.map(e => (
-                                        <MenuItem key={e.id} value={e.id}>
-                                            {e.nombre || e.tipo} ({parseFloat(e.peso_tara_kg || e.tara_kg || 0).toFixed(2)} kg)
-                                        </MenuItem>
-                                    ))}
-                                </TextField>
-                            </Grid>
-
-                            <Grid item xs={12} sm={4}>
-                                <TextField
-                                    select
-                                    fullWidth
-                                    name="empaque_bolsa"
-                                    label="Bolsa Insumo"
-                                    value={form.empaque_bolsa}
-                                    onChange={handleChange}
-                                >
-                                    <MenuItem value=""><em>Sin Bolsa</em></MenuItem>
-                                    {empaques.map(e => (
-                                        <MenuItem key={e.id} value={e.id}>
-                                            {e.nombre || e.tipo} ({parseFloat(e.peso_tara_kg || e.tara_kg || 0).toFixed(2)} kg)
-                                        </MenuItem>
-                                    ))}
-                                </TextField>
-                            </Grid>
-
-                            {/* Cantidades y Pesos */}
-                            <Grid item xs={12} sm={6}>
-                                <TextField
                                     type="number"
-                                    fullWidth
-                                    required
-                                    name="cantidad_cajas"
-                                    label="Cantidad Cajas / Bultos"
-                                    value={form.cantidad_cajas}
+                                    name="unidades"
+                                    label="Número de Cajas / Bultos (Unidades)"
+                                    value={form.unidades}
                                     onChange={handleChange}
-                                    inputProps={{ min: 0 }}
+                                    slotProps={{ htmlInput: { min: 0 } }}
                                 />
                             </Grid>
 
-                            <Grid item xs={12} sm={6}>
+                            {/* PESO BRUTO */}
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <TextField
-                                    type="number"
                                     fullWidth
                                     required
+                                    type="number"
                                     name="peso_bruto_kg"
-                                    label="Peso Bruto Bascula (Kg)"
+                                    label="Peso Bruto Capturado (Kg)"
                                     value={form.peso_bruto_kg}
                                     onChange={handleChange}
-                                    InputProps={{
-                                        endAdornment: <InputAdornment position="end">kg</InputAdornment>,
-                                    }}
-                                    inputProps={{ step: "0.001", min: "0" }}
+                                    slotProps={{ htmlInput: { step: '0.01', min: '0.01' } }}
                                 />
                             </Grid>
 
-                            {/* Resumen de Destare Calculado */}
-                            <Grid item xs={12}>
-                                <Paper variant="outlined" sx={{ p: 2, backgroundColor: '#f8f9fa' }}>
-                                    <Grid container spacing={2}>
-                                        <Grid item xs={4}>
-                                            <Typography variant="caption" color="text.secondary">Tara Total</Typography>
-                                            <Typography variant="h6">{calculosDestare.taraTotal.toFixed(3)} kg</Typography>
+                            {/* RESUMEN DE DESTARE Y PESO NETO CALCULADO */}
+                            {!esTraspaso && (
+                                <Grid size={{ xs: 12 }}>
+                                    <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2 }}>
+                                        <Typography variant="subtitle2" color="primary" gutterBottom fontWeight="bold">
+                                            Cálculo Automático de Destare
+                                        </Typography>
+                                        <Grid container spacing={2}>
+                                            <Grid size={{ xs: 4 }}>
+                                                <Typography variant="caption" display="block" color="text.secondary">
+                                                    Tara Total
+                                                </Typography>
+                                                <Typography variant="body1" fontWeight="bold">
+                                                    {calculosDestare.taraTotal.toFixed(2)} kg
+                                                </Typography>
+                                            </Grid>
+                                            <Grid size={{ xs: 4 }}>
+                                                <Typography variant="caption" display="block" color="text.secondary">
+                                                    Peso Neto (Kg)
+                                                </Typography>
+                                                <Typography variant="body1" fontWeight="bold" color="success.main">
+                                                    {calculosDestare.pesoNetoKg.toFixed(2)} kg
+                                                </Typography>
+                                            </Grid>
+                                            <Grid size={{ xs: 4 }}>
+                                                <Typography variant="caption" display="block" color="text.secondary">
+                                                    Peso Neto (Lbs)
+                                                </Typography>
+                                                <Typography variant="body1" fontWeight="bold" color="success.main">
+                                                    {calculosDestare.pesoNetoLbs.toFixed(2)} lbs
+                                                </Typography>
+                                            </Grid>
                                         </Grid>
-                                        <Grid item xs={4}>
-                                            <Typography variant="caption" color="text.secondary">Peso Neto (Kg)</Typography>
-                                            <Typography variant="h6" color="primary.main">{calculosDestare.pesoNetoKg.toFixed(3)} kg</Typography>
-                                        </Grid>
-                                        <Grid item xs={4}>
-                                            <Typography variant="caption" color="text.secondary">Peso Neto (Lbs)</Typography>
-                                            <Typography variant="h6" color="secondary.main">{calculosDestare.pesoNetoLbs.toFixed(3)} lbs</Typography>
-                                        </Grid>
-                                    </Grid>
-                                </Paper>
-                            </Grid>
+                                    </Paper>
+                                </Grid>
+                            )}
 
-                            {/* Observaciones */}
-                            <Grid item xs={12}>
+                            {/* OBSERVACIONES */}
+                            <Grid size={{ xs: 12 }}>
                                 <TextField
                                     fullWidth
                                     multiline
                                     rows={2}
                                     name="observaciones"
-                                    label="Observaciones"
+                                    label="Observaciones del Movimiento"
+                                    placeholder="Notas adicionales para el registro de inventario..."
                                     value={form.observaciones}
                                     onChange={handleChange}
                                 />
@@ -451,16 +473,19 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
                         </Grid>
                     )}
                 </DialogContent>
-                <DialogActions sx={{ p: 2 }}>
-                    <Button onClick={handleClose} disabled={loadingSubmit}>
+
+                <DialogActions sx={{ p: 2, gap: 1 }}>
+                    <Button onClick={handleClose} color="inherit" disabled={loadingSubmit}>
                         Cancelar
                     </Button>
-                    <Button 
-                        type="submit" 
-                        variant="contained" 
+                    <Button
+                        type="submit"
+                        variant="contained"
+                        color="primary"
                         disabled={loadingSubmit || fetchingCatalogos}
+                        startIcon={loadingSubmit && <CircularProgress size={18} color="inherit" />}
                     >
-                        {loadingSubmit ? <CircularProgress size={24} /> : 'Guardar Movimiento'}
+                        {loadingSubmit ? 'Procesando...' : 'Confirmar Movimiento'}
                     </Button>
                 </DialogActions>
             </form>

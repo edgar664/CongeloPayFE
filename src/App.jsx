@@ -11,7 +11,8 @@ import Unidades from './Pages/UnidadM'; // Página para el catálogo de unidades
 import Empaques from './Pages/Empaque';
 import Almacenes from'./Pages/Almacen'; // Página para el catálogo de almacenes
 import Ubicaciones from './Pages/Ubicaciones'; // Página para el catálogo de ubicaciones
-
+import Lotes from './Pages/Lote'; // Página para el catálogo de ubicaciones
+import Proveedores from './Pages/Proveedor'; // Página para el catálogo de ubicaciones
 
 
 
@@ -81,6 +82,15 @@ function App() {
             path="/ubicaciones"
             element={isAuth ? <Ubicaciones onLogout={logoutAction} /> : <Navigate to="/login" />}
           />
+          <Route
+            path="/lotes"
+            element={isAuth ? <Lotes onLogout={logoutAction} /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/proveedores"
+            element={isAuth ? <Proveedores onLogout={logoutAction} /> : <Navigate to="/login" />}
+          />
+          {/* Agrega más rutas según sea necesario */}
           {/* Ruta comodín para redirigir a la página de inicio si no se encuentra la ruta */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

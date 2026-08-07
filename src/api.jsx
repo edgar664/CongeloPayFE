@@ -22,6 +22,14 @@ export const ENDPOINTS = {
     empaques: `${BASE_URL}almacen/empaques/`,
     almacenes: `${BASE_URL}almacen/almacenes/`,
     ubicaciones: `${BASE_URL}almacen/ubicaciones/`,
-    movimientos: `${BASE_URL}almacen/kardex/`,
+    movimientosInventario: `${BASE_URL}almacen/movimientos-inventario/`,
+    tarimas: `${BASE_URL}almacen/movimientos-inventario/lote/<int:lote_id>/`,
+    lotes: `${BASE_URL}almacen/lotes/`,
+    getTarimasPorLote: (loteId) => `${BASE_URL}almacen/movimientos-inventario/lote/${loteId}/`,
+
+
+    //proveedores
+    proveedores: `${BASE_URL}proveedores/proveedores/`,
+    registrarEntrada: `${BASE_URL}almacen/operaciones/entrada/`,
 
 };

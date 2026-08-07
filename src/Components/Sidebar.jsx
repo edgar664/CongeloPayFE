@@ -101,6 +101,7 @@ const MODULE_GROUPS = Object.freeze([
                 icon: 'inventario',
                 submenu: [
                     { label: 'Movimientos', path: '/almacen' },
+                    { label: 'Lotes', path: '/lotes' },
                     { label: 'Ajustes de Inventario', path: '/ajustes' },
                 ],
             },
@@ -140,6 +141,7 @@ const MODULE_GROUPS = Object.freeze([
                     { label: 'Catálogo de Empaques', path: '/empaques' },
                     { label: 'Catálogo de Almacenes', path: '/almacenes' },
                     { label: 'Catálogo de Ubicaciones', path: '/ubicaciones' },
+                    { label: 'Catálogo de Proveedores', path: '/proveedores' },
 
                 ],
             },

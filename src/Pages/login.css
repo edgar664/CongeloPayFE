@@ -160,3 +160,9 @@ body,
     color: #94a3b8;
     text-align: center;
 }
+.logo-placeholder img {
+    width: 360px;
+    object-fit: contain;
+    margin: 0 auto 0.5rem auto; /* arriba derecha abajo izquierda */
+    display: block;
+}

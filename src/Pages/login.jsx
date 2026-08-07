@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import './login.css';
 import { ENDPOINTS } from '../api';
 import { useCompany } from '../Context/CompanyContext';
+// 1. Importa la imagen (ajusta la ruta según la ubicación real dentro de src/)
+import logoSvg from '../assets/gemini-svg.svg';
 
 export default function Login({ onLogin }) {
     const [username, setUsername] = useState('');
@@ -59,7 +61,7 @@ export default function Login({ onLogin }) {
     };
 
     return (
-        <div 
+        <div
             className="login-container"
             style={{
                 '--primary-theme': company.color_primario || '#1B2A52',
@@ -69,9 +71,10 @@ export default function Login({ onLogin }) {
             <div className="login-overlay"></div>
             <div className="login-box">
                 <div className="login-header">
-                    <div className="logo-placeholder">❄️</div>
-                    <h1>{company.nombre_comercial || 'Sano y Nutritivo Zamora'}</h1>
-                    <p>Sistema Integral de Control Operativo y Almacenamiento</p>
+                    {/* 2. Úsalo como variable */}
+                    <div className="logo-placeholder">
+                        <img src={logoSvg} alt="Logo" />
+                    </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="login-form">

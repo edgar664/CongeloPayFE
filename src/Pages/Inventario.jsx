@@ -14,7 +14,8 @@ export default function AlmacenProductos() {
     // Filtros
     const [searchTerm, setSearchTerm] = useState('');
     const [filterTipoMov, setFilterTipoMov] = useState('TODOS');
-    
+    const [tarimaId, setTarimaId] = useState(''); // ID de tarima activa para la API
+
     // Modal de registro
     const [showFormMov, setShowFormMov] = useState(false);
 
@@ -26,6 +27,7 @@ export default function AlmacenProductos() {
     const navigate = useNavigate();
     const { company } = useCompany();
 
+    // Función para obtener movimientos (Generales o por Tarima)
     const fetchMovimientos = useCallback(async () => {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -42,25 +44,37 @@ export default function AlmacenProductos() {
                 'Authorization': `Bearer ${token}`
             };
 
-            const response = await fetch(ENDPOINTS.movimientosInventario || '/api/movimientos-inventario/', { method: 'GET', headers });
+            // Si hay un tarimaId ingresado, usa la URL del Kardex por tarima
+            let url = ENDPOINTS.movimientosInventario || '/api/movimientos-inventario/';
+            if (tarimaId.trim() !== '') {
+                url = `/api/kardex/tarima/${tarimaId.trim()}/`;
+            }
+
+            const response = await fetch(url, { method: 'GET', headers });
 
             if (response.ok) {
                 const data = await response.json();
                 const items = Array.isArray(data) ? data : (data.results || []);
-                setMovimientos(items);
+                
+                // Ordenar por ID o fecha descendente
+                const ordenados = items.sort((a, b) => new Date(b.fecha_movimiento || b.fecha_registro || b.created_at || b.id) - new Date(a.fecha_movimiento || a.fecha_registro || a.created_at || a.id));
+                setMovimientos(ordenados);
             } else if (response.status === 401) {
                 localStorage.removeItem('token');
                 navigate('/login');
+            } else if (response.status === 404) {
+                setMovimientos([]);
+                setError(`No se encontró el Kardex para la tarima ID: ${tarimaId}`);
             } else {
                 const errData = await response.json().catch(() => ({}));
-                setError(errData.detail || 'Error al obtener el historial de movimientos.');
+                setError(errData.error || errData.detail || 'Error al obtener el historial de movimientos.');
             }
         } catch (err) {
             setError('Error de conexión con el servidor.');
         } finally {
             setLoading(false);
         }
-    }, [navigate]);
+    }, [navigate, tarimaId]);
 
     useEffect(() => {
         fetchMovimientos();
@@ -71,21 +85,38 @@ export default function AlmacenProductos() {
         window.location.href = '/login';
     };
 
-    const handleFormSuccess = () => {
+    const handleFormSuccess = (nuevoMovimiento) => {
         setShowFormMov(false);
+        if (nuevoMovimiento && nuevoMovimiento.id) {
+            setMovimientos(prev => [nuevoMovimiento, ...prev]);
+        }
         fetchMovimientos();
     };
 
-    // Lógica de filtrado limpia
+    // Lógica de filtrado en cliente sobre los datos recibidos
     const filteredItems = movimientos.filter(item => {
-        const loteCodigo = typeof item.lote === 'object' ? item.lote?.codigo_lote : (item.lote_codigo || String(item.lote || ''));
-        const productoNombre = typeof item.lote === 'object' ? (item.lote?.producto?.nombre || '') : (item.producto_nombre || '');
-        const usuarioNombre = typeof item.usuario === 'object' ? (item.usuario?.first_name || item.usuario?.username) : (item.usuario_nombre || '');
+        const loteCodigo = typeof item.lote === 'object' 
+            ? (item.lote?.codigo_lote || item.lote?.codigo || '') 
+            : String(item.lote_codigo || item.lote || '');
 
+        const productoNombre = typeof item.lote === 'object' 
+            ? (item.lote?.producto?.nombre || item.lote?.producto_nombre || '') 
+            : String(item.producto_nombre || '');
+
+        const usuarioNombre = typeof item.usuario === 'object' 
+            ? (item.usuario?.first_name || item.usuario?.username || '') 
+            : String(item.usuario_nombre || '');
+
+        const tarimaCodigo = typeof item.tarima === 'object'
+            ? (item.tarima?.codigo || item.tarima?.folio || '')
+            : String(item.tarima || '');
+
+        const term = searchTerm.toLowerCase();
         const matchesSearch = 
-            loteCodigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            productoNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            usuarioNombre.toLowerCase().includes(searchTerm.toLowerCase());
+            loteCodigo.toLowerCase().includes(term) ||
+            productoNombre.toLowerCase().includes(term) ||
+            usuarioNombre.toLowerCase().includes(term) ||
+            tarimaCodigo.toLowerCase().includes(term);
 
         const matchesTipo = filterTipoMov === 'TODOS' || item.tipo_movimiento === filterTipoMov;
 
@@ -122,7 +153,7 @@ export default function AlmacenProductos() {
                         <div className="page-title">
                             <h1>Kardex - Movimientos de Inventario</h1>
                             <p>
-                                {company.nombre_comercial || 'Sano y Nutritivo Zamora'} &mdash; Registro Inmutable de Entradas y Salidas
+                                {company.nombre_comercial || 'Sano y Nutritivo Zamora'} &mdash; {tarimaId ? `Historial de Tarima #${tarimaId}` : 'Registro Inmutable de Entradas y Salidas'}
                             </p>
                         </div>
                     </div>
@@ -168,6 +199,17 @@ export default function AlmacenProductos() {
 
                     <div className="pro-card storage-card">
                         <div className="storage-filter-bar">
+                            {/* Input para consulta de Tarima específica (KardexTarimaAPIView) */}
+                            <div className="search-box" style={{ maxWidth: '200px' }}>
+                                <input
+                                    type="number"
+                                    placeholder="ID Tarima (Kardex)..."
+                                    value={tarimaId}
+                                    onChange={(e) => setTarimaId(e.target.value)}
+                                />
+                            </div>
+
+                            {/* Búsqueda general */}
                             <div className="search-box">
                                 <input
                                     type="text"
@@ -176,6 +218,8 @@ export default function AlmacenProductos() {
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
                             </div>
+
+                            {/* Selector de Tipo de Movimiento */}
                             <div className="filter-box">
                                 <label>Tipo de Movimiento:</label>
                                 <select value={filterTipoMov} onChange={(e) => setFilterTipoMov(e.target.value)}>
@@ -202,8 +246,8 @@ export default function AlmacenProductos() {
                                     <tr>
                                         <th>Fecha / Hora</th>
                                         <th>Tipo Movimiento</th>
-                                        <th>Lote</th>
-                                        <th>Origen → Destino</th>
+                                        <th>Tarima / Lote</th>
+                                        <th>Origen &rarr; Destino</th>
                                         <th>Cajas</th>
                                         <th>Peso Bruto / Tara</th>
                                         <th>Peso Neto (Kg / Lbs)</th>
@@ -211,7 +255,7 @@ export default function AlmacenProductos() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {loading ? (
+                                    {loading && movimientos.length === 0 ? (
                                         <tr>
                                             <td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>
                                                 Cargando Kardex de inventario...
@@ -225,12 +269,37 @@ export default function AlmacenProductos() {
                                         </tr>
                                     ) : (
                                         filteredItems.map((item) => {
-                                            const loteCodigo = typeof item.lote === 'object' ? item.lote?.codigo_lote : (item.lote_codigo || item.lote);
-                                            const origenNombre = typeof item.ubicacion_origen === 'object' ? item.ubicacion_origen?.nombre : (item.ubicacion_origen_nombre || '-');
-                                            const destinoNombre = typeof item.ubicacion_destino === 'object' ? item.ubicacion_destino?.nombre : (item.ubicacion_destino_nombre || '-');
-                                            const usuarioNombre = typeof item.usuario === 'object' ? (item.usuario?.first_name || item.usuario?.username) : (item.usuario_nombre || 'N/D');
+                                            // Extracción segura de Tarima y Lote
+                                            const tarimaCodigo = typeof item.tarima === 'object' && item.tarima
+                                                ? (item.tarima.codigo || item.tarima.folio || `#${item.tarima.id}`)
+                                                : (item.tarima ? `#${item.tarima}` : '-');
 
-                                            const fecha = item.fecha_registro ? new Date(item.fecha_registro).toLocaleString('es-MX') : '-';
+                                            const loteCodigo = typeof item.lote === 'object' && item.lote
+                                                ? (item.lote.codigo_lote || item.lote.codigo) 
+                                                : (item.lote_codigo || item.lote || '-');
+
+                                            // Extracción segura de Ubicación Origen
+                                            const origenNombre = typeof item.ubicacion_origen === 'object' && item.ubicacion_origen
+                                                ? (item.ubicacion_origen.almacen_nombre 
+                                                    ? `${item.ubicacion_origen.almacen_nombre} - ${item.ubicacion_origen.nombre || item.ubicacion_origen.codigo_ubicacion}`
+                                                    : item.ubicacion_origen.nombre || item.ubicacion_origen.codigo_ubicacion)
+                                                : (item.ubicacion_origen_nombre || '-');
+
+                                            // Extracción segura de Ubicación Destino
+                                            const destinoNombre = typeof item.ubicacion_destino === 'object' && item.ubicacion_destino
+                                                ? (item.ubicacion_destino.almacen_nombre 
+                                                    ? `${item.ubicacion_destino.almacen_nombre} - ${item.ubicacion_destino.nombre || item.ubicacion_destino.codigo_ubicacion}`
+                                                    : item.ubicacion_destino.nombre || item.ubicacion_destino.codigo_ubicacion)
+                                                : (item.ubicacion_destino_nombre || '-');
+
+                                            // Extracción segura de Usuario
+                                            const usuarioNombre = typeof item.usuario === 'object' && item.usuario
+                                                ? (item.usuario.first_name ? `${item.usuario.first_name} ${item.usuario.last_name || ''}` : item.usuario.username)
+                                                : (item.usuario_nombre || 'Sistema');
+
+                                            const fechaRaw = item.fecha_movimiento || item.fecha_registro || item.created_at;
+                                            const fecha = fechaRaw ? new Date(fechaRaw).toLocaleString('es-MX') : '-';
+                                                
                                             const pesoKg = parseFloat(item.peso_neto_kg || 0).toFixed(3);
                                             const pesoLbs = parseFloat(item.peso_neto_lbs || 0).toFixed(3);
                                             const pesoBruto = parseFloat(item.peso_bruto_kg || 0).toFixed(3);
@@ -247,11 +316,15 @@ export default function AlmacenProductos() {
                                                             {item.tipo_movimiento}
                                                         </span>
                                                     </td>
-                                                    <td className="code-cell">{loteCodigo}</td>
+                                                    <td className="code-cell">
+                                                        <strong>{tarimaCodigo}</strong>
+                                                        <br />
+                                                        <small style={{ color: '#666' }}>Lote: {loteCodigo}</small>
+                                                    </td>
                                                     <td>
                                                         <small>{origenNombre}</small> &rarr; <span className="location-tag">{destinoNombre}</span>
                                                     </td>
-                                                    <td><strong>{item.cantidad_cajas}</strong></td>
+                                                    <td><strong>{item.unidades}</strong></td>
                                                     <td>
                                                         <small>B: {pesoBruto} kg<br />T: {tara} kg</small>
                                                     </td>
