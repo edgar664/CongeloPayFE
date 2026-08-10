@@ -27,9 +27,11 @@ export const ENDPOINTS = {
     lotes: `${BASE_URL}almacen/lotes/`,
     getTarimasPorLote: (loteId) => `${BASE_URL}almacen/movimientos-inventario/lote/${loteId}/`,
     existencias: `${BASE_URL}almacen/stock-actual/`,
+    registrarEntrada: `${BASE_URL}almacen/operaciones/entrada/`,
+    traspasos: `${BASE_URL}almacen/operaciones/traspaso/`,
+
 
     //proveedores
     proveedores: `${BASE_URL}proveedores/proveedores/`,
-    registrarEntrada: `${BASE_URL}almacen/operaciones/entrada/`,
 
 };

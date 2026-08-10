@@ -103,7 +103,6 @@ const MODULE_GROUPS = Object.freeze([
                     { label: 'Movimientos', path: '/almacen' },
                     { label: 'Lotes', path: '/lotes' },
                     { label: 'Existencias', path: '/existencias' },
-                    { label: 'Traspasos', path: '/traspasos' },
                     { label: 'Ajustes de Inventario', path: '/ajustes' },
 
                 ],
