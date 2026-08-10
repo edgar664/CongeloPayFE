@@ -10,7 +10,7 @@ import './almacen.css';
 export default function AlmacenProductos() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
-    
+
     // Filtros
     const [searchTerm, setSearchTerm] = useState('');
     const [filterTipoMov, setFilterTipoMov] = useState('TODOS');
@@ -55,9 +55,13 @@ export default function AlmacenProductos() {
             if (response.ok) {
                 const data = await response.json();
                 const items = Array.isArray(data) ? data : (data.results || []);
-                
-                // Ordenar por ID o fecha descendente
-                const ordenados = items.sort((a, b) => new Date(b.fecha_movimiento || b.fecha_registro || b.created_at || b.id) - new Date(a.fecha_movimiento || a.fecha_registro || a.created_at || a.id));
+
+                // Ordenar por ID o fecha_registro descendente
+                const ordenados = items.sort((a, b) => {
+                    const dateA = new Date(a.fecha_registro || a.fecha_movimiento || a.created_at || 0);
+                    const dateB = new Date(b.fecha_registro || b.fecha_movimiento || b.created_at || 0);
+                    return dateB - dateA || (b.id - a.id);
+                });
                 setMovimientos(ordenados);
             } else if (response.status === 401) {
                 localStorage.removeItem('token');
@@ -95,24 +99,24 @@ export default function AlmacenProductos() {
 
     // Lógica de filtrado en cliente sobre los datos recibidos
     const filteredItems = movimientos.filter(item => {
-        const loteCodigo = typeof item.lote === 'object' 
-            ? (item.lote?.codigo_lote || item.lote?.codigo || '') 
+        const loteCodigo = typeof item.lote === 'object'
+            ? (item.lote?.codigo_lote || item.lote?.codigo || '')
             : String(item.lote_codigo || item.lote || '');
 
-        const productoNombre = typeof item.lote === 'object' 
-            ? (item.lote?.producto?.nombre || item.lote?.producto_nombre || '') 
+        const productoNombre = typeof item.lote === 'object'
+            ? (item.lote?.producto?.nombre || item.lote?.producto_nombre || '')
             : String(item.producto_nombre || '');
 
-        const usuarioNombre = typeof item.usuario === 'object' 
-            ? (item.usuario?.first_name || item.usuario?.username || '') 
+        const usuarioNombre = typeof item.usuario === 'object'
+            ? (item.usuario?.first_name || item.usuario?.username || '')
             : String(item.usuario_nombre || '');
 
         const tarimaCodigo = typeof item.tarima === 'object'
             ? (item.tarima?.codigo || item.tarima?.folio || '')
-            : String(item.tarima || '');
+            : String(item.tarima_codigo || item.tarima || '');
 
         const term = searchTerm.toLowerCase();
-        const matchesSearch = 
+        const matchesSearch =
             loteCodigo.toLowerCase().includes(term) ||
             productoNombre.toLowerCase().includes(term) ||
             usuarioNombre.toLowerCase().includes(term) ||
@@ -123,12 +127,12 @@ export default function AlmacenProductos() {
         return matchesSearch && matchesTipo;
     });
 
-    // Métricas dinámicas
+    // Métricas dinámicas alineadas al esquema backend
     const totalKilosEntradas = movimientos
         .filter(m => m.tipo_movimiento?.startsWith('ENTRADA'))
         .reduce((acc, curr) => acc + parseFloat(curr.peso_neto_kg || 0), 0);
 
-    const totalCajas = movimientos.reduce((acc, curr) => acc + parseInt(curr.cantidad_cajas || 0, 10), 0);
+    const totalCajas = movimientos.reduce((acc, curr) => acc + parseInt(curr.unidades || curr.cantidad_cajas || 0, 10), 0);
     const totalMovimientos = movimientos.length;
 
     return (
@@ -249,8 +253,8 @@ export default function AlmacenProductos() {
                                         <th>Tarima / Lote</th>
                                         <th>Origen &rarr; Destino</th>
                                         <th>Cajas</th>
-                                        <th>Peso Bruto / Tara</th>
-                                        <th>Peso Neto (Kg / Lbs)</th>
+                                        <th>PESO BRUTO / TARA</th>
+                                        <th>PESO NETO (KG / LBS)</th>
                                         <th>Registrado por</th>
                                     </tr>
                                 </thead>
@@ -272,47 +276,47 @@ export default function AlmacenProductos() {
                                             // Extracción segura de Tarima y Lote
                                             const tarimaCodigo = typeof item.tarima === 'object' && item.tarima
                                                 ? (item.tarima.codigo || item.tarima.folio || `#${item.tarima.id}`)
-                                                : (item.tarima ? `#${item.tarima}` : '-');
+                                                : (item.tarima_codigo || (item.tarima ? `#${item.tarima}` : '-'));
 
                                             const loteCodigo = typeof item.lote === 'object' && item.lote
-                                                ? (item.lote.codigo_lote || item.lote.codigo) 
+                                                ? (item.lote.codigo_lote || item.lote.codigo)
                                                 : (item.lote_codigo || item.lote || '-');
 
-                                            // Extracción segura de Ubicación Origen
+                                            // Extracción segura de Ubicaciones
                                             const origenNombre = typeof item.ubicacion_origen === 'object' && item.ubicacion_origen
-                                                ? (item.ubicacion_origen.almacen_nombre 
+                                                ? (item.ubicacion_origen.almacen_nombre
                                                     ? `${item.ubicacion_origen.almacen_nombre} - ${item.ubicacion_origen.nombre || item.ubicacion_origen.codigo_ubicacion}`
                                                     : item.ubicacion_origen.nombre || item.ubicacion_origen.codigo_ubicacion)
-                                                : (item.ubicacion_origen_nombre || '-');
+                                                : (item.ubicacion_origen_nombre || 'N/A');
 
-                                            // Extracción segura de Ubicación Destino
                                             const destinoNombre = typeof item.ubicacion_destino === 'object' && item.ubicacion_destino
-                                                ? (item.ubicacion_destino.almacen_nombre 
+                                                ? (item.ubicacion_destino.almacen_nombre
                                                     ? `${item.ubicacion_destino.almacen_nombre} - ${item.ubicacion_destino.nombre || item.ubicacion_destino.codigo_ubicacion}`
                                                     : item.ubicacion_destino.nombre || item.ubicacion_destino.codigo_ubicacion)
-                                                : (item.ubicacion_destino_nombre || '-');
+                                                : (item.ubicacion_destino_nombre || 'N/A');
 
-                                            // Extracción segura de Usuario
+                                            // Usuario
                                             const usuarioNombre = typeof item.usuario === 'object' && item.usuario
-                                                ? (item.usuario.first_name ? `${item.usuario.first_name} ${item.usuario.last_name || ''}` : item.usuario.username)
+                                                ? (item.usuario.first_name ? `${item.usuario.first_name} ${item.usuario.last_name || ''}`.trim() : item.usuario.username)
                                                 : (item.usuario_nombre || 'Sistema');
 
-                                            const fechaRaw = item.fecha_movimiento || item.fecha_registro || item.created_at;
+                                            const fechaRaw = item.fecha_registro || item.fecha_movimiento || item.created_at;
                                             const fecha = fechaRaw ? new Date(fechaRaw).toLocaleString('es-MX') : '-';
-                                                
+
+                                            // Formateo de pesos
+                                            const pesoBruto = parseFloat(item.peso_bruto_kg || item.peso_bruto || 0).toFixed(3);
+                                            const tara = parseFloat(item.tara_total_kg || item.tara || 0).toFixed(3);
                                             const pesoKg = parseFloat(item.peso_neto_kg || 0).toFixed(3);
-                                            const pesoLbs = parseFloat(item.peso_neto_lbs || 0).toFixed(3);
-                                            const pesoBruto = parseFloat(item.peso_bruto_kg || 0).toFixed(3);
-                                            const tara = parseFloat(item.tara_total_kg || 0).toFixed(3);
+                                            const pesoLbs = parseFloat(item.peso_neto_lbs || (item.peso_neto_kg ? item.peso_neto_kg * 2.20462 : 0)).toFixed(3);
+                                            const unidades = item.unidades ?? item.cantidad_cajas ?? 0;
 
                                             return (
                                                 <tr key={item.id}>
                                                     <td>{fecha}</td>
                                                     <td>
-                                                        <span className={`st-badge ${
-                                                            item.tipo_movimiento?.startsWith('ENTRADA') ? 'active' :
-                                                            item.tipo_movimiento?.startsWith('SALIDA') ? 'critical' : 'warning'
-                                                        }`}>
+                                                        <span className={`st-badge ${item.tipo_movimiento?.startsWith('ENTRADA') ? 'active' :
+                                                                item.tipo_movimiento?.startsWith('SALIDA') ? 'critical' : 'warning'
+                                                            }`}>
                                                             {item.tipo_movimiento}
                                                         </span>
                                                     </td>
@@ -324,14 +328,20 @@ export default function AlmacenProductos() {
                                                     <td>
                                                         <small>{origenNombre}</small> &rarr; <span className="location-tag">{destinoNombre}</span>
                                                     </td>
-                                                    <td><strong>{item.unidades}</strong></td>
-                                                    <td>
-                                                        <small>B: {pesoBruto} kg<br />T: {tara} kg</small>
+                                                    <td><strong>{unidades}</strong></td>
+
+                                                    {/* Columna PESO BRUTO / TARA */}
+                                                    <td style={{ lineHeight: '1.4' }}>
+                                                        <div><small style={{ color: '#555' }}>B:</small> {pesoBruto} kg</div>
+                                                        <div><small style={{ color: '#555' }}>T:</small> {tara} kg</div>
                                                     </td>
-                                                    <td>
-                                                        <strong>{pesoKg} kg</strong><br />
-                                                        <small style={{ color: '#666' }}>{pesoLbs} lbs</small>
+
+                                                    {/* Columna PESO NETO (KG / LBS) */}
+                                                    <td style={{ lineHeight: '1.4' }}>
+                                                        <div><strong style={{ fontSize: '1rem' }}>{pesoKg} kg</strong></div>
+                                                        <div style={{ color: '#888', fontSize: '0.85rem' }}>{pesoLbs} lbs</div>
                                                     </td>
+
                                                     <td>{usuarioNombre}</td>
                                                 </tr>
                                             );
