@@ -13,11 +13,19 @@ import {
     Typography,
     Box,
     Paper,
-    IconButton
+    IconButton,
+    Autocomplete,
+    Chip,
+    Checkbox
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ScaleIcon from '@mui/icons-material/Scale';
+import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import { ENDPOINTS } from '../api';
+
+const icon = <CheckBoxOutlineBlankIcon fontSize="small" />;
+const checkedIcon = <CheckBoxIcon fontSize="small" />;
 
 const TIPOS_MOVIMIENTO = [
     { value: 'TODOS', label: 'Todos los Tipos' },
@@ -34,6 +42,7 @@ const INITIAL_FORM_STATE = {
     lote: '',
     ubicacion_origen: '',
     ubicacion_destino: '',
+    tarimas_seleccionadas: [], // <-- Nuevo campo para IDs de tarimas a mover
     empaque_tarima: '',
     empaque_caja: '',
     empaque_bolsa: '',
@@ -47,6 +56,10 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
     const [ubicaciones, setUbicaciones] = useState([]);
     const [empaques, setEmpaques] = useState([]);
 
+    // Nuevos estados para tarimas
+    const [tarimasDisponibles, setTarimasDisponibles] = useState([]);
+    const [fetchingTarimas, setFetchingTarimas] = useState(false);
+
     const [form, setForm] = useState(INITIAL_FORM_STATE);
     const [fetchingCatalogos, setFetchingCatalogos] = useState(false);
     const [loadingSubmit, setLoadingSubmit] = useState(false);
@@ -55,10 +68,12 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
     const handleClose = useCallback(() => {
         if (loadingSubmit) return;
         setForm(INITIAL_FORM_STATE);
+        setTarimasDisponibles([]);
         setMensaje(null);
         onClose();
     }, [loadingSubmit, onClose]);
 
+    // Carga inicial de catálogos generales
     useEffect(() => {
         if (!open) return;
 
@@ -107,9 +122,66 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
         return () => controller.abort();
     }, [open]);
 
+    // Carga dinámica de tarimas al seleccionar un lote y/o ubicación origen
+    useEffect(() => {
+        if (!form.lote || form.tipo_movimiento !== 'TRASPASO') {
+            setTarimasDisponibles([]);
+            setForm(prev => ({ ...prev, tarimas_seleccionadas: [] }));
+            return;
+        }
+
+        const controller = new AbortController();
+        const token = localStorage.getItem('token');
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+
+        const fetchTarimas = async () => {
+            setFetchingTarimas(true);
+            try {
+                // Endpoint configurable según backend (ejemplo: /api/tarimas/?lote_id=12&ubicacion_id=3)
+                let url = `${ENDPOINTS.tarimas || '/api/tarimas/'}?lote_id=${form.lote}`;
+                if (form.ubicacion_origen) {
+                    url += `&ubicacion_id=${form.ubicacion_origen}`;
+                }
+
+                const res = await fetch(url, { headers, signal: controller.signal });
+                if (res.ok) {
+                    const data = await res.json();
+                    setTarimasDisponibles(Array.isArray(data) ? data : data.results || []);
+                }
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Error al cargar tarimas del lote:', err);
+                }
+            } finally {
+                setFetchingTarimas(false);
+            }
+        };
+
+        fetchTarimas();
+
+        return () => controller.abort();
+    }, [form.lote, form.ubicacion_origen, form.tipo_movimiento]);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setForm(prev => ({ ...prev, [name]: value }));
+    };
+
+    // Manejador del autocompletado de tarimas
+    const handleTarimasChange = (event, newValue) => {
+        // Recalcular unidades y peso si los datos vienen en la estructura de la tarima
+        const totalCajas = newValue.reduce((acc, t) => acc + (t.num_cajas || t.unidades || 0), 0);
+        const totalPeso = newValue.reduce((acc, t) => acc + (parseFloat(t.peso_bruto_kg || t.peso_kg) || 0), 0);
+
+        setForm(prev => ({
+            ...prev,
+            tarimas_seleccionadas: newValue,
+            unidades: totalCajas > 0 ? totalCajas : prev.unidades,
+            peso_bruto_kg: totalPeso > 0 ? totalPeso.toFixed(2) : prev.peso_bruto_kg
+        }));
     };
 
     const calculosDestare = useMemo(() => {
@@ -172,7 +244,7 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
                 empaque_caja_id: form.empaque_caja ? parseInt(form.empaque_caja, 10) : null,
                 empaque_bolsa_id: form.empaque_bolsa ? parseInt(form.empaque_bolsa, 10) : null,
                 unidades: cantUnidades,
-                num_cajas: cantUnidades, // Respaldo si la vista Django usa num_cajas
+                num_cajas: cantUnidades,
                 observaciones: form.observaciones || ''
             } : {
                 lote_id: parseInt(form.lote, 10),
@@ -181,6 +253,7 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
                 peso_a_mover_kg: parseFloat(form.peso_bruto_kg) || 0,
                 unidades: cantUnidades,
                 num_cajas: cantUnidades,
+                tarimas_ids: form.tarimas_seleccionadas.map(t => t.id), // <-- Envío de IDs de tarimas seleccionadas al backend
                 observaciones: form.observaciones || ''
             };
 
@@ -330,7 +403,50 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
                                 </TextField>
                             </Grid>
 
-                            {/* TARIMA */}
+                            {/* SELECCIÓN MÚLTIPLE DE TARIMAS / PALLETS (SOLO TRASPASO) */}
+                            {esTraspaso && (
+                                <Grid size={{ xs: 12 }}>
+                                    <Autocomplete
+                                        multiple
+                                        options={tarimasDisponibles}
+                                        // 1. renderTags debe ser prop directa de Autocomplete
+                                        renderTags={(value, getTagProps) =>
+                                            value.map((option, index) => (
+                                                <Chip
+                                                    label={option.label || option}
+                                                    {...getTagProps({ index })}
+                                                    key={option.id || index}
+                                                />
+                                            ))
+                                        }
+                                        renderInput={(params) => {
+                                            // 2. Extraemos InputProps para no duplicarlo ni pasarlo en el spread general
+                                            const { InputProps, ...restParams } = params;
+
+                                            return (
+                                                <TextField
+                                                    {...restParams}
+                                                    label="Tarimas a Trasladar"
+                                                    // 3. Pasamos InputProps de forma limpia y estructurada
+                                                    InputProps={{
+                                                        ...InputProps,
+                                                        endAdornment: (
+                                                            <React.Fragment>
+                                                                {fetchingTarimas ? (
+                                                                    <CircularProgress color="inherit" size={20} />
+                                                                ) : null}
+                                                                {InputProps?.endAdornment}
+                                                            </React.Fragment>
+                                                        ),
+                                                    }}
+                                                />
+                                            );
+                                        }}
+                                    />
+                                </Grid>
+                            )}
+
+                            {/* TARIMA (ENTRADA) */}
                             {!esTraspaso && (
                                 <Grid size={{ xs: 12, sm: 4 }}>
                                     <TextField
@@ -351,7 +467,7 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
                                 </Grid>
                             )}
 
-                            {/* CAJA */}
+                            {/* CAJA (ENTRADA) */}
                             {!esTraspaso && (
                                 <Grid size={{ xs: 12, sm: 4 }}>
                                     <TextField
@@ -372,7 +488,7 @@ export default function RecepcionBascula({ open, onClose, onSuccess }) {
                                 </Grid>
                             )}
 
-                            {/* BOLSA */}
+                            {/* BOLSA (ENTRADA) */}
                             {!esTraspaso && (
                                 <Grid size={{ xs: 12, sm: 4 }}>
                                     <TextField

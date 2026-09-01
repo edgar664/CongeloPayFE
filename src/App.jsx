@@ -14,7 +14,7 @@ import Ubicaciones from './Pages/Ubicaciones'; // Página para el catálogo de u
 import Lotes from './Pages/Lote'; // Página para el catálogo de ubicaciones
 import Proveedores from './Pages/Proveedor'; // Página para el catálogo de ubicaciones
 import Existencias from './Pages/Stock'; // Página para el catálogo de ubicaciones
-
+import Liberacion from './Pages/Liberacion'; // Página para el catálogo de ubicaciones
 
 
 function App() {
@@ -92,6 +92,10 @@ function App() {
           <Route
             path="/existencias"
             element={isAuth ? <Existencias onLogout={logoutAction} /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/liberacion"
+            element={isAuth ? <Liberacion onLogout={logoutAction} /> : <Navigate to="/login" />}
           />
           {/* Agrega más rutas según sea necesario */}
           {/* Ruta comodín para redirigir a la página de inicio si no se encuentra la ruta */}

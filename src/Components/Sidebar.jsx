@@ -5,7 +5,6 @@ import './Sidebar.css';
 
 /* =========================================================================
  * ICONOS — trazo delgado estilo SAP Fiori / Lucide
- * Se definen fuera del componente para que NUNCA se recreen entre renders.
  * ===================================================================== */
 const ICONS = Object.freeze({
     dashboard: (
@@ -81,9 +80,8 @@ const ICONS = Object.freeze({
 });
 
 /* =========================================================================
- * CONFIGURACIÓN DE MÓDULOS — estática, fuera del componente.
- * `permission` es opcional: si el sidebar recibe la prop `permissions`
- * (array/Set de ids), solo se muestran los ítems permitidos.
+ * CONFIGURACIÓN DE MÓDULOS
+ * Nota: Se corrigió la ruta duplicada '/asistencia' en Calidad para evitar conflictos.
  * ===================================================================== */
 const MODULE_GROUPS = Object.freeze([
     {
@@ -104,7 +102,6 @@ const MODULE_GROUPS = Object.freeze([
                     { label: 'Lotes', path: '/lotes' },
                     { label: 'Existencias', path: '/existencias' },
                     { label: 'Ajustes de Inventario', path: '/ajustes' },
-
                 ],
             },
             {
@@ -121,11 +118,10 @@ const MODULE_GROUPS = Object.freeze([
                 label: 'Calidad e Inocuidad',
                 icon: 'calidad',
                 submenu: [
-                    { label: 'Directorio de Personal', path: '/personal' },
-                    { label: 'Control de Asistencia', path: '/asistencia' },
+                    { label: 'Liberación de Productos', path: '/liberacion' },
+                    { label: 'Control de Asistencia Calidad', path: '/calidad-asistencia' },
                 ],
             },
-            
         ],
     },
     {
@@ -144,7 +140,6 @@ const MODULE_GROUPS = Object.freeze([
                     { label: 'Catálogo de Almacenes', path: '/almacenes' },
                     { label: 'Catálogo de Ubicaciones', path: '/ubicaciones' },
                     { label: 'Catálogo de Proveedores', path: '/proveedores' },
-
                 ],
             },
         ],
@@ -162,8 +157,6 @@ const getUserInitials = (name) => {
 
 /* =========================================================================
  * SUBCOMPONENTES MEMOIZADOS
- * Aislar cada ítem evita que TODO el menú se vuelva a renderizar cuando
- * solo cambia el estado de un acordeón o el hover de otro elemento.
  * ===================================================================== */
 
 const MenuLink = React.memo(function MenuLink({ item, collapsed }) {
@@ -234,12 +227,11 @@ const SidebarComponent = ({
     handleLogout,
     collapsed: collapsedProp,
     setCollapsed: setCollapsedProp,
-    permissions, // opcional: array/Set de ids visibles. undefined = mostrar todo.
+    permissions,
 }) => {
     const location = useLocation();
     const { company } = useCompany();
 
-    // ---- Estado colapsado: controlado (props) o autónomo (localStorage) ----
     const isControlled = collapsedProp !== undefined && typeof setCollapsedProp === 'function';
 
     const [internalCollapsed, setInternalCollapsed] = useState(() => {
@@ -264,14 +256,13 @@ const SidebarComponent = ({
                 try {
                     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
                 } catch {
-                    /* localStorage no disponible: se ignora silenciosamente */
+                    /* localStorage no disponible */
                 }
             }
         },
         [collapsed, isControlled, setCollapsedProp]
     );
 
-    // ---- Módulos visibles según permisos (memoizado) ----
     const visibleGroups = useMemo(() => {
         if (!permissions) return MODULE_GROUPS;
         const allowed = permissions instanceof Set ? permissions : new Set(permissions);
@@ -281,7 +272,6 @@ const SidebarComponent = ({
         })).filter((group) => group.items.length > 0);
     }, [permissions]);
 
-    // ---- Submenú activo según ruta actual ----
     const activeParentId = useMemo(() => {
         for (const group of visibleGroups) {
             for (const item of group.items) {
@@ -293,12 +283,16 @@ const SidebarComponent = ({
         return null;
     }, [visibleGroups, location.pathname]);
 
-    const [openSubmenus, setOpenSubmenus] = useState({ inventario: true });
+    // ✅ ESTADO INICIAL VACÍO
+    const [openSubmenus, setOpenSubmenus] = useState({});
 
-    // Se abre automáticamente el acordeón padre de la ruta activa (una sola escritura de estado)
+    // ✅ SOLO ABRE SI LA RUTA CORRESPONDE A UN MENÚ PADRE
     useEffect(() => {
         if (activeParentId) {
-            setOpenSubmenus((prev) => (prev[activeParentId] ? prev : { ...prev, [activeParentId]: true }));
+            setOpenSubmenus((prev) => {
+                if (prev[activeParentId]) return prev;
+                return { ...prev, [activeParentId]: true };
+            });
         }
     }, [activeParentId]);
 
